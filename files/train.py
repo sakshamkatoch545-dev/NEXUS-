@@ -161,7 +161,8 @@ def plot_training_curves(log_history: list, output_path: str):
     plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close()
-    print(f"[train] Training curves saved → {output_path}")
+    print(f"[train] Training curves saved -> {output_path}")
+
 
 
 # ──────────────────────────────────────────────
@@ -172,10 +173,11 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="Fine-tune ViT for AI vs Real image classification"
     )
-    parser.add_argument("--ai_dir",        default="test_images/ai",
+    parser.add_argument("--ai_dir",        default="data/dataset/ai",
                         help="Folder of AI-generated images  [label 0]")
-    parser.add_argument("--real_dir",      default="test_images/real",
+    parser.add_argument("--real_dir",      default="data/dataset/real",
                         help="Folder of real/human images    [label 1]")
+
     parser.add_argument("--output_dir",    default="./fine_tuned_vit",
                         help="Where to save the fine-tuned model")
     parser.add_argument("--base_model",    default="google/vit-base-patch16-224",
@@ -315,21 +317,21 @@ def main():
     # ── Save model + processor ────────────────
     trainer.save_model(args.output_dir)
     processor.save_pretrained(args.output_dir)
-    print(f"[train] Model saved → {args.output_dir}")
+    print(f"[train] Model saved -> {args.output_dir}")
 
     # ── Final evaluation ──────────────────────
-    print("[train] Running final evaluation …")
+    print("[train] Running final evaluation ...")
     eval_results = trainer.evaluate()
 
     final_acc = eval_results.get("eval_accuracy", 0.0)
-    print(f"\n{'═' * 45}")
+    print(f"\n{'=' * 45}")
     print(f"  Final Val Accuracy : {final_acc * 100:.2f}%")
     print(f"  Final Val Loss     : {eval_results.get('eval_loss', 0.0):.4f}")
-    print(f"{'═' * 45}\n")
+    print(f"{'=' * 45}\n")
 
     # Save eval results as JSON (app.py reads this for "test accuracy" display)
     eval_path = os.path.join(args.output_dir, "eval_results.json")
-    with open(eval_path, "w") as f:
+    with open(eval_path, "w", encoding="utf-8") as f:
         json.dump(
             {
                 "eval_accuracy": final_acc,
@@ -342,11 +344,12 @@ def main():
             f,
             indent=2,
         )
-    print(f"[train] Eval results saved → {eval_path}")
+    print(f"[train] Eval results saved -> {eval_path}")
 
     # ── Plot training curves ──────────────────
     plot_path = os.path.join(args.output_dir, "training_curves.png")
     plot_training_curves(trainer.state.log_history, plot_path)
+
 
     return final_acc
 
