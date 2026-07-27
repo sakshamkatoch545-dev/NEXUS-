@@ -933,28 +933,6 @@ def full_image_analysis(image: Image.Image) -> dict:
     ela      = engine_ela_compression(image)
     ft_vit   = engine_fine_tuned_vit(image)
 
-    # Primary signals: Neural ensemble + CLIP (these directly classify AI vs real)
-    # Use their average as the AI confidence score
-    ai_conf   = (neural["raw"] + clip["raw"]) / 2.0
-
-    # If fine-tuned ViT is active, blend it in as a 3rd signal
-    if ft_vit.get("active", False):
-        ai_conf = (neural["raw"] + clip["raw"] + ft_vit["raw"]) / 3.0
-
-    human_conf = 1.0 - ai_conf
-    final      = round(ai_conf * 100, 1)
-
-    # Simple rule: human confidence > AI confidence → AUTHENTIC, else → AI-GENERATED
-    if human_conf > ai_conf:
-        verdict       = "AUTHENTIC"
-        verdict_label = "✅ AUTHENTIC"
-    elif ai_conf > human_conf + 0.10:   # require a 10% margin to call AI (avoid edge ties)
-        verdict       = "AI-GENERATED"
-        verdict_label = "🚨 AI-GENERATED"
-    else:
-        verdict       = "UNCERTAIN"
-        verdict_label = "⚠️ UNCERTAIN"
-
     engines_dict = {
         "neural_ensemble": {
             "name": "Neural Network Ensemble",
@@ -1008,19 +986,112 @@ def full_image_analysis(image: Image.Image) -> dict:
         },
     }
 
+    # Normalize every engine to a 0-100 AI-risk percentage.  The final result
+    # uses all of those percentages, rather than merely counting high-risk
+    # badges.  A successfully trained local ViT is given greater influence
+    # because it learns from confirmed examples, while the other engines remain
+    # part of the final forensic consensus.
+    total_engine_count = len(engines_dict)
+    weighted_engine_scores = []
+    for engine_key, engine in engines_dict.items():
+        if engine["max"] <= 0:
+            continue
+        ai_percentage = engine["score"] / engine["max"] * 100
+        weight = 4.0 if engine_key == "fine_tuned_vit" and engine.get("active") else 1.0
+        weighted_engine_scores.append((ai_percentage, weight))
+
+    engine_ai_percentages = [score for score, _weight in weighted_engine_scores]
+    high_risk_engine_count = sum(percent > 60 for percent in engine_ai_percentages)
+    human_engine_count = total_engine_count - high_risk_engine_count
+
+    total_weight = sum(weight for _score, weight in weighted_engine_scores)
+    ai_conf = sum(score * weight for score, weight in weighted_engine_scores) / (total_weight * 100)
+    human_conf = 1.0 - ai_conf
+
+    if human_conf > ai_conf:
+        verdict       = "AUTHENTIC"
+        verdict_label = "✅ AUTHENTIC"
+    else:
+        verdict       = "AI-GENERATED"
+        verdict_label = "🚨 AI-GENERATED"
+
     return {
         "verdict":          verdict,
         "verdict_label":    verdict_label,
-        "confidence_score": round(ai_conf * 100, 1),   # AI probability 0-100
-        "human_score":      round(human_conf * 100, 1), # Human probability 0-100
+        "confidence_score": round(ai_conf * 100, 1),   # Average AI risk across engines
+        "human_score":      round(human_conf * 100, 1), # Average Human confidence across engines
+        "total_engine_count": total_engine_count,
+        "high_risk_engine_count": high_risk_engine_count,
+        "human_engine_count":     human_engine_count,
         "engines":          engines_dict,
     }
 
 
-def full_profile_analysis(image, username="", bio="", followers=0, posts=0, following=0, account_age_days=0):
-    """Compatibility wrapper for older API calls.
+def full_profile_analysis(
+    image=None,
+    username="",
+    bio="",
+    followers=0,
+    posts=0,
+    following=0,
+    account_age_days=0,
+    image_source=None,
+):
+    """Analyze an image and expose the legacy profile-analysis response shape.
 
-    Parameters are retained for backward compatibility but currently unused.
-    Delegates to full_image_analysis.
+    The Streamlit profile view and older callers use profile-oriented key names,
+    while the primary detector returns an engine-oriented result.  Keep both
+    APIs working by adapting the detector output instead of duplicating the
+    image analysis.
     """
-    return full_image_analysis(image)
+    # Older profile UI code uses ``image_source``.  Accept it as an alias so
+    # both profile app variants can call this shared detector.
+    if image is None:
+        image = image_source
+    if image is None:
+        raise ValueError("An image is required for profile analysis.")
+
+    analysis = full_image_analysis(image)
+    score = analysis["confidence_score"]
+    engines = analysis["engines"]
+
+    metadata_score = 0
+    red_flags = []
+    if followers < 10 and following > 100:
+        metadata_score += 30
+        red_flags.append("Low followers with high following")
+    if posts == 0:
+        metadata_score += 25
+        red_flags.append("No posts")
+    if account_age_days and account_age_days < 30:
+        metadata_score += 20
+        red_flags.append("Recently created account")
+    if len(username) > 12 and any(char.isdigit() for char in username):
+        metadata_score += 15
+        red_flags.append("Suspicious username pattern")
+    if not bio.strip():
+        metadata_score += 10
+        red_flags.append("Empty profile bio")
+    metadata_score = min(metadata_score, 100)
+
+    return {
+        "overall_suspicion_score": score,
+        # Use the ASCII identifier here so legacy console callers also work
+        # on Windows terminals that default to a non-UTF-8 code page.
+        "overall_verdict": analysis["verdict"],
+        "image_analysis": {
+            "ai_probability": score / 100,
+            "is_ai_generated": analysis["verdict"] == "AI-GENERATED",
+            "confidence_level": "high" if score >= 65 else "medium" if score >= 40 else "low",
+            "individual_results": engines,
+        },
+        "metadata_analysis": {
+            "metadata_suspicion_score": metadata_score,
+            "red_flags": red_flags,
+        },
+        "clip_score": engines["clip_semantic"]["score"],
+        "artifact_score": engines["texture_smoothness"]["score"],
+        "symmetry_score": engines["face_symmetry"]["score"],
+        "frequency_score": engines["frequency"]["score"],
+        "watermark_score": 0,
+    }

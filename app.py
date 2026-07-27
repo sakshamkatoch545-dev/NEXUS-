@@ -799,6 +799,8 @@ with col_out:
 
         ai_pct    = score
         human_pct = result.get("human_score", 100.0 - score)
+        ai_votes = result.get("high_risk_engine_count", 0)
+        human_votes = result.get("human_engine_count", 0)
 
 
         # ── TABS ──
@@ -824,6 +826,11 @@ with col_out:
                 </div>
                 <div class="verdict-bar">
                     <div class="verdict-fill {fc}" style="width:{min(score, 100):.1f}%"></div>
+                </div>
+                <div style="margin-top:0.8rem;font-family:'JetBrains Mono',monospace;font-size:0.72rem;
+                    color:rgba(203,213,225,0.72);letter-spacing:0.06em;">
+                    10-ENGINE AVERAGE: {ai_pct:.1f}% AI · {human_pct:.1f}% HUMAN
+                    <span style="opacity:0.65;">({ai_votes} HIGH-RISK · {human_votes} LOWER-RISK)</span>
                 </div>
             </div>
             """, unsafe_allow_html=True)

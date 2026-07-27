@@ -421,7 +421,7 @@ with col_out:
                 unsafe_allow_html=True,
             )
             result = full_profile_analysis(
-                image_source=image,
+                image=image,
                 username=username,
                 bio=bio,
                 followers=int(followers),

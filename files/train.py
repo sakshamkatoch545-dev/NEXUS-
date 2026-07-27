@@ -234,12 +234,20 @@ def main():
     print(f"[train] Real images : {len(real_items)}")
 
     # ── Train / val split ─────────────────────
+    # Confirmed feedback samples are deliberately kept in the training set.
+    # Holding one of them out at random makes it impossible for fine-tuning to
+    # learn from the correction supplied by a user.
     all_items = ai_items + real_items
-    random.shuffle(all_items)
+    feedback_items = [
+        item for item in all_items
+        if Path(item[0]).stem.lower().startswith("feedback_")
+    ]
+    split_items = [item for item in all_items if item not in feedback_items]
+    random.shuffle(split_items)
 
-    n_val   = max(1, int(len(all_items) * args.val_split))
-    val_items   = all_items[:n_val]
-    train_items = all_items[n_val:]
+    n_val = max(1, int(len(split_items) * args.val_split))
+    val_items = split_items[:n_val]
+    train_items = split_items[n_val:] + feedback_items
 
     print(f"[train] Train samples : {len(train_items)}")
     print(f"[train] Val samples   : {len(val_items)}")
