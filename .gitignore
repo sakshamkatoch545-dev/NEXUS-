@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 venv/
+desktop.ini
 
 # Local training artifacts and logs (kept on disk, not in GitHub)
 *.safetensors
