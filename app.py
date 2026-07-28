@@ -667,7 +667,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 st.markdown(
-    "<div class='subtitle'>Artificial · Intelligence · Forensics // Deep 7-Engine Inspection</div>",
+    "<div class='subtitle'>Artificial · Intelligence · Forensics // Deep 11-Engine Inspection</div>",
     unsafe_allow_html=True,
 )
 
@@ -725,6 +725,7 @@ with col_in:
         ("08", "Face Symmetry & Smoothness", "Facial Landmark & Blur"),
         ("09", "Error Level Analysis (ELA)", "JPEG Compression Residual"),
         ("10", "Fine-Tuned ViT Classifier", "Local Dataset Trained Model"),
+        ("11", "Watermark Detection", "Margin Text & Logo Search"),
     ]
 
     for num, name, sub in engines_info:
@@ -782,7 +783,7 @@ with col_out:
     else:
         with st.spinner(""):
             st.markdown(
-                "<div class='scan-pulse'>[ Forensic Scan In Progress — 10 Engines Active ]</div>",
+                "<div class='scan-pulse'>[ Forensic Scan In Progress — 11 Engines Active ]</div>",
                 unsafe_allow_html=True,
             )
             result = full_image_analysis(image)
@@ -806,7 +807,7 @@ with col_out:
         # ── TABS ──
         tab_human_ai, tab_engines = st.tabs([
             "⚡  Human vs AI Breakdown",
-            "🔬  10-Engine Forensics",
+            "🔬  11-Engine Forensics",
         ])
 
 
@@ -829,7 +830,7 @@ with col_out:
                 </div>
                 <div style="margin-top:0.8rem;font-family:'JetBrains Mono',monospace;font-size:0.72rem;
                     color:rgba(203,213,225,0.72);letter-spacing:0.06em;">
-                    10-ENGINE AVERAGE: {ai_pct:.1f}% AI · {human_pct:.1f}% HUMAN
+                    11-ENGINE AVERAGE: {ai_pct:.1f}% AI · {human_pct:.1f}% HUMAN
                     <span style="opacity:0.65;">({ai_votes} HIGH-RISK · {human_votes} LOWER-RISK)</span>
                 </div>
             </div>
@@ -888,7 +889,7 @@ with col_out:
             st.markdown("</div>", unsafe_allow_html=True)
 
         # ══════════════════════════════════════════════
-        # TAB 2: 7-ENGINE FORENSICS
+        # TAB 2: 11-ENGINE FORENSICS
         # ══════════════════════════════════════════════
         with tab_engines:
             for _key, eng in result["engines"].items():
@@ -936,7 +937,7 @@ with col_out:
 
 st.markdown(
     '<div class="footer-text">NEXUS+ <span>·</span> AI Detector v6.0 <span>·</span> '
-    '7-Engine Multi-Domain Forensics <span>·</span> '
+    '11-Engine Multi-Domain Forensics <span>·</span> '
     'HuggingFace + OpenAI CLIP + FFT</div>',
     unsafe_allow_html=True,
 )

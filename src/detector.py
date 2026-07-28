@@ -866,6 +866,45 @@ def engine_ela_compression(image: Image.Image) -> dict:
     }
 
 
+def engine_watermark_detection(image: Image.Image) -> dict:
+    """Detect likely text/logo watermarks in the image margins."""
+    frame = np.asarray(image.convert("RGB"))
+    height, width = frame.shape[:2]
+    border_x = max(int(width * 0.14), 64)
+    border_y = max(int(height * 0.14), 48)
+    regions = [
+        frame[:border_y, :border_x],
+        frame[:border_y, -border_x:],
+        frame[-border_y:, :border_x],
+        frame[-border_y:, -border_x:],
+    ]
+
+    text_like_regions = 0
+    for region in regions:
+        gray = cv2.cvtColor(region, cv2.COLOR_RGB2GRAY)
+        edges = cv2.Canny(gray, 80, 180)
+        contours, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+        components = 0
+        region_area = region.shape[0] * region.shape[1]
+        for contour in contours:
+            x, y, contour_width, contour_height = cv2.boundingRect(contour)
+            area = contour_width * contour_height
+            if 8 <= contour_width <= region.shape[1] * 0.9 and 3 <= contour_height <= region.shape[0] * 0.35 and 20 <= area <= region_area * 0.2:
+                components += 1
+        if components >= 8:
+            text_like_regions += 1
+
+    detected = text_like_regions >= 1
+    return {
+        "score": 100 if detected else 0,
+        "max": 100,
+        "raw": 1.0 if detected else 0.0,
+        "active": True,
+        "detected": detected,
+        "explanation": "Watermark or logo-like text detected in the image margin." if detected else "No watermark pattern detected.",
+    }
+
+
 # ═════════════════════════════════════════════════════
 # ENGINE 10 — FINE-TUNED VIT CLASSIFIER ENGINE
 # ═════════════════════════════════════════════════════
@@ -931,6 +970,7 @@ def full_image_analysis(image: Image.Image) -> dict:
     portrait = engine_portrait_style(image)
     face     = engine_face_symmetry(image)
     ela      = engine_ela_compression(image)
+    watermark = engine_watermark_detection(image)
     ft_vit   = engine_fine_tuned_vit(image)
 
     engines_dict = {
@@ -983,6 +1023,11 @@ def full_image_analysis(image: Image.Image) -> dict:
             "name": "Fine-Tuned ViT Classifier",
             "icon": "⚡",
             **ft_vit,
+        },
+        "watermark_detection": {
+            "name": "Watermark Detection",
+            "icon": "🏷️",
+            **watermark,
         },
     }
 
@@ -1093,5 +1138,5 @@ def full_profile_analysis(
         "artifact_score": engines["texture_smoothness"]["score"],
         "symmetry_score": engines["face_symmetry"]["score"],
         "frequency_score": engines["frequency"]["score"],
-        "watermark_score": 0,
+        "watermark_score": engines["watermark_detection"]["score"],
     }
