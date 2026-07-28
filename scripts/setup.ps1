@@ -15,6 +15,9 @@ if (-not (Test-Path "venv\Scripts\python.exe")) {
 $venvPython = Join-Path (Get-Location) "venv\Scripts\python.exe"
 & $venvPython -m pip install --upgrade pip
 & $venvPython -m pip install -r requirements.txt
+if (Test-Path "requirements.lock") {
+    & $venvPython -m pip install -r requirements.lock
+}
 
 Write-Host "Setup complete. Configure GEMINI_API_KEY and GROQ_API_KEY, then run:"
 Write-Host ".\venv\Scripts\Activate.ps1; streamlit run app.py"

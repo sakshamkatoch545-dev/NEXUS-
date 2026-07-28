@@ -10,6 +10,8 @@ the project must be rebuilt with the same behavior and layout.
 - Do not change `README.md` unless explicitly requested.
 - Use Python 3.12, install every package in `requirements.txt`, and keep the
   installed package versions consistent across machines.
+- Use `requirements.lock` when pinned builds are available for the target
+  operating system and Python version.
 - Do not commit API keys, `.env`, `venv`, `.runtime_packages`, Python caches, or
   local backup/candidate model directories.
 - Preserve the tracked `fine_tuned_vit` checkpoint and the tracked dataset,
@@ -49,6 +51,7 @@ py -3.12 -m venv venv
 .\venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
+python -m pip install -r requirements.lock
 $env:GEMINI_API_KEY = "your-own-key"
 $env:GROQ_API_KEY = "your-own-key"
 streamlit run app.py
@@ -73,7 +76,8 @@ fallbacks. Never place real credentials in source code or commit history.
 > and every file under `src/`, `scripts/`, `files/`, `data/`, `sample_images/`,
 > and `fine_tuned_vit/` before editing. Preserve the README and all existing
 > features. Do not rename or duplicate files. Use Python 3.12 and install all
-> dependencies from `requirements.txt`. Preserve the 13-engine order and the
+> dependencies from `requirements.txt`, then use `requirements.lock` for pinned
+> versions when compatible wheels exist. Preserve the 13-engine order and the
 > public return schema. Keep the tracked fine-tuned model and dataset. Configure
 > API keys only through environment variables. Run syntax checks and a local
 > Streamlit smoke test before reporting completion. If exact API results differ,
