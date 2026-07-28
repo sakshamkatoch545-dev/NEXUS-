@@ -204,3 +204,23 @@ streamlit run app.py
   <br>
   <strong>NEXUS+ AI Detector v6.0 &nbsp;·&nbsp; Built with Streamlit, PyTorch, OpenAI CLIP & OpenCV</strong>
 </div>
+# AI provenance engine (v6)
+
+The detector now includes `ai_provenance`, a dedicated weak-signal engine for
+ChatGPT/GPT Image, Gemini/Imagen, and other modern generators. It combines
+generator-family semantic compatibility with available EXIF/C2PA hints and
+reports `nearest_generator`, `similarity`, `detected_artifacts`, and
+`feature_scores` in the main JSON response. It does not claim exact provider
+attribution: resizing, screenshots, and social-media recompression can remove
+provenance and alter visual evidence.
+
+To enable the multimodal API engine, configure secrets outside source control:
+
+```powershell
+$env:GEMINI_API_KEY = "your-gemini-key"
+$env:GROQ_API_KEY = "your-groq-key"
+streamlit run app.py
+```
+
+The code tries Gemini first and Groq vision as a fallback. API keys are never
+written to the repository or returned in analysis results.
