@@ -16,6 +16,8 @@ the project must be rebuilt with the same behavior and layout.
   local backup/candidate model directories.
 - Preserve the tracked `fine_tuned_vit` checkpoint and the tracked dataset,
   sample images, scripts, and screenshots.
+- Install Git LFS before cloning so `fine_tuned_vit/model.safetensors` is
+  downloaded instead of remaining an LFS pointer.
 
 ## Runtime contract
 
@@ -47,6 +49,7 @@ The current 13-engine order is:
 ## Fresh-machine build
 
 ```powershell
+git lfs install
 py -3.12 -m venv venv
 .\venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip

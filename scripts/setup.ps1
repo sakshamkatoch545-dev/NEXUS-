@@ -8,6 +8,10 @@ if (-not (Test-Path "requirements.txt")) {
     throw "Run this script from the NEXUS+ repository root."
 }
 
+if (-not (Test-Path "fine_tuned_vit\model.safetensors")) {
+    throw "The fine-tuned ViT weights are missing. Clone/pull with Git LFS enabled."
+}
+
 if (-not (Test-Path "venv\Scripts\python.exe")) {
     Invoke-Expression "$Python -m venv venv"
 }
