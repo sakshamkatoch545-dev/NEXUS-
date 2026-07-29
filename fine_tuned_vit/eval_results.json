@@ -1,7 +1,7 @@
 {
-  "eval_accuracy": 1.0,
-  "eval_loss": 0.015536951832473278,
-  "train_samples": 166,
+  "eval_accuracy": 0.975,
+  "eval_loss": 0.029540378600358963,
+  "train_samples": 168,
   "val_samples": 40,
   "epochs": 3,
   "base_model": "google/vit-base-patch16-224"
