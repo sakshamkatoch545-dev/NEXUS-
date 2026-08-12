@@ -1108,16 +1108,18 @@ def full_image_analysis(image: Image.Image) -> dict:
 
     # Normalize every engine to a 0-100 AI-risk percentage.  The final result
     # uses all of those percentages, rather than merely counting high-risk
-    # badges.  A successfully trained local ViT is given greater influence
-    # because it learns from confirmed examples, while the other engines remain
-    # part of the final forensic consensus.
+    # badges.  A successfully trained local ViT is given dominant influence
+    # because it learns from confirmed examples (hyperrealistic AI + real portraits),
+    # while the other engines remain part of the final forensic consensus.
     total_engine_count = len(engines_dict)
     weighted_engine_scores = []
     for engine_key, engine in engines_dict.items():
         if engine["max"] <= 0:
             continue
         ai_percentage = engine["score"] / engine["max"] * 100
-        weight = 4.0 if engine_key == "fine_tuned_vit" and engine.get("active") else 1.0
+        # Fine-tuned ViT gets very high weight (15x) since it's trained on our
+        # specific dataset including hyperrealistic AI that fools other engines
+        weight = 15.0 if engine_key == "fine_tuned_vit" and engine.get("active") else 1.0
         if engine_key == "ai_provenance":
             weight = 1.5
         weighted_engine_scores.append((ai_percentage, weight))

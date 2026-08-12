@@ -1,8 +1,13 @@
 {
-  "eval_accuracy": 0.975,
-  "eval_loss": 0.029540378600358963,
-  "train_samples": 168,
-  "val_samples": 40,
-  "epochs": 3,
-  "base_model": "google/vit-base-patch16-224"
+  "eval_accuracy": 0.9915,
+  "eval_loss": 0.01318,
+  "train_samples": 477,
+  "val_samples": 117,
+  "epochs": 4,
+  "base_model": "google/vit-base-patch16-224",
+  "real_source": "LFW face dataset + feedback images",
+  "ai_source": "Genuine AI-generated (hyperrealistic SDXL/Midjourney) + synthetic PIL",
+  "genuine_ai_images": 133,
+  "hyperreal_ai_images": 120,
+  "real_portrait_training": true
 }
