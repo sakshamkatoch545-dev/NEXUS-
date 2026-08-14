@@ -37,7 +37,6 @@ from transformers import (
     TrainingArguments,
     Trainer,
 )
-import evaluate
 
 # ---------------------------------------------------------------------------
 # PATHS
@@ -46,15 +45,18 @@ ROOT        = Path(__file__).resolve().parent.parent
 DATASET_DIR = ROOT / "data" / "dataset"
 AI_DIR      = DATASET_DIR / "ai"
 REAL_DIR    = DATASET_DIR / "real"
-MODEL_OUT   = ROOT / "fine_tuned_vit"
+MODEL_OUT   = ROOT / os.environ.get("NEXUS_MODEL_OUT", "fine_tuned_vit")
+MODEL_IN    = ROOT / os.environ.get("NEXUS_MODEL_IN", "fine_tuned_vit")
 BASE_MODEL  = "google/vit-base-patch16-224"
 
 AI_DIR.mkdir(parents=True, exist_ok=True)
 REAL_DIR.mkdir(parents=True, exist_ok=True)
 
 IMG_SIZE = 224
-EPOCHS   = 4
-BATCH    = 8
+# Environment overrides let a feedback refresh complete quickly without
+# changing the default full-retraining configuration.
+EPOCHS   = int(os.environ.get("NEXUS_TRAIN_EPOCHS", "4"))
+BATCH    = int(os.environ.get("NEXUS_TRAIN_BATCH", "8"))
 SEED     = 42
 random.seed(SEED)
 np.random.seed(SEED)
@@ -293,7 +295,9 @@ class AIDetectorDataset(Dataset):
 def compute_metrics(eval_pred):
     logits, labels = eval_pred
     preds = np.argmax(logits, axis=-1)
-    return evaluate.load("accuracy").compute(predictions=preds, references=labels)
+    # Avoid `evaluate.load("accuracy")`: it obtains a global Hugging Face cache
+    # lock, which can be unavailable in a sandboxed desktop session.
+    return {"accuracy": float(np.mean(preds == labels))}
 
 
 def train():
@@ -312,7 +316,13 @@ def train():
     ai_weighted = ensure_ai_dataset(target=130)
 
     # 3. Collect all samples with labels
-    real_paths = sorted(REAL_DIR.glob("*.jpg")) + sorted(REAL_DIR.glob("*.png"))
+    # Include JPEG uploads as well as .jpg/.png files. User feedback arrives
+    # through the UI in its original extension, which is commonly `.jpeg`.
+    real_paths = (
+        sorted(REAL_DIR.glob("*.jpg"))
+        + sorted(REAL_DIR.glob("*.jpeg"))
+        + sorted(REAL_DIR.glob("*.png"))
+    )
     # (path, label, sample_weight)
     all_samples = [(str(p), 1, 1.0) for p in real_paths]          # label 1 = real
     for (p, w) in ai_weighted:
@@ -322,6 +332,14 @@ def train():
     split = int(len(all_samples) * 0.8)
     train_raw = all_samples[:split]
     val_raw   = all_samples[split:]
+
+    # A user-labelled feedback image must influence training, not merely be
+    # held out for evaluation by the random split.
+    feedback_val = [s for s in val_raw if Path(s[0]).name.startswith("feedback_")]
+    if feedback_val:
+        val_raw = [s for s in val_raw if s not in feedback_val]
+        train_raw.extend(feedback_val)
+        random.shuffle(train_raw)
 
     train_samples = [(p, lbl) for p, lbl, _ in train_raw]
     val_samples   = [(p, lbl) for p, lbl, _ in val_raw]
@@ -333,8 +351,8 @@ def train():
     print(f"[AI Core]  Genuine AI-generated images in train split: {genuine_count}")
 
     # 4. Load from checkpoint
-    existing_ckpt = MODEL_OUT / "model.safetensors"
-    start_from = str(MODEL_OUT) if existing_ckpt.exists() else BASE_MODEL
+    existing_ckpt = MODEL_IN / "model.safetensors"
+    start_from = str(MODEL_IN) if existing_ckpt.exists() else BASE_MODEL
     print(f"\n[Model] Loading checkpoint: {start_from}")
 
     processor = ViTImageProcessor.from_pretrained(start_from)

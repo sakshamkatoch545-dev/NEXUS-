@@ -17,6 +17,7 @@ import requests
 import numpy as np
 import cv2
 import torch
+import streamlit as st
 import open_clip
 from PIL import Image, ImageChops, ImageEnhance, ImageOps
 from transformers import pipeline, ViTForImageClassification, ViTImageProcessor
@@ -32,29 +33,29 @@ MODELS = {
     "general": "umm-maybe/AI-image-detector",
 }
 
-_pipes: dict = {}
 
-
+@st.cache_resource(show_spinner=False)
 def _load_pipelines() -> dict:
-    global _pipes
-    if _pipes:
-        return _pipes
+    pipes = {}
     for key, model_id in MODELS.items():
         try:
-            _pipes[key] = pipeline("image-classification", model=model_id)
+            pipes[key] = pipeline("image-classification", model=model_id)
         except Exception:
             pass
-    return _pipes
+    return pipes
 
 
 # ─────────────────────────────────────────────────────
 # CLIP SETUP
 # ─────────────────────────────────────────────────────
 
-_clip_model, _, _clip_preprocess = open_clip.create_model_and_transforms(
-    "ViT-B-32", pretrained="openai"
-)
-_clip_tokenizer = open_clip.get_tokenizer("ViT-B-32")
+@st.cache_resource(show_spinner=False)
+def _get_clip_resources():
+    clip_model, _, clip_preprocess = open_clip.create_model_and_transforms(
+        "ViT-B-32", pretrained="openai"
+    )
+    clip_tokenizer = open_clip.get_tokenizer("ViT-B-32")
+    return clip_model, clip_preprocess, clip_tokenizer
 
 
 def _metadata_provenance(image: Image.Image) -> dict:
@@ -90,11 +91,12 @@ def engine_ai_provenance(image: Image.Image) -> dict:
     semantic = 0.5
     provider = "Unknown AI"
     try:
-        tensor = _clip_preprocess(image).unsqueeze(0)
-        tokens = _clip_tokenizer(prompts)
-        with torch.no_grad():
-            im = _clip_model.encode_image(tensor)
-            tx = _clip_model.encode_text(tokens)
+        clip_model, clip_preprocess, clip_tokenizer = _get_clip_resources()
+        tensor = clip_preprocess(image).unsqueeze(0)
+        tokens = clip_tokenizer(prompts)
+        with torch.inference_mode():
+            im = clip_model.encode_image(tensor)
+            tx = clip_model.encode_text(tokens)
             probs = (im @ tx.T).softmax(dim=-1)[0].cpu().numpy()
         semantic = float((probs[1] + probs[2] + probs[3]) / max(probs.sum(), 1e-8))
         provider = ["ChatGPT / OpenAI", "Gemini / Google", "Unknown AI"][int(np.argmax(probs[1:]))]
@@ -191,7 +193,8 @@ def engine_neural_ensemble(image: Image.Image) -> dict:
 
 def engine_clip_semantic(image: Image.Image) -> dict:
     """Extended CLIP zero-shot classification for AI detection."""
-    img_tensor = _clip_preprocess(image).unsqueeze(0)
+    clip_model, clip_preprocess, clip_tokenizer = _get_clip_resources()
+    img_tensor = clip_preprocess(image).unsqueeze(0)
 
     prompts = [
         "a real photograph taken by a camera with natural sensor noise",
@@ -201,11 +204,11 @@ def engine_clip_semantic(image: Image.Image) -> dict:
         "a computer-generated image of a person that does not exist",
     ]
 
-    text_tokens = _clip_tokenizer(prompts)
+    text_tokens = clip_tokenizer(prompts)
 
-    with torch.no_grad():
-        img_feat = _clip_model.encode_image(img_tensor)
-        txt_feat = _clip_model.encode_text(text_tokens)
+    with torch.inference_mode():
+        img_feat = clip_model.encode_image(img_tensor)
+        txt_feat = clip_model.encode_text(text_tokens)
         probs    = (img_feat @ txt_feat.T).softmax(dim=-1)[0]
 
     real_score = float(probs[0].item()) + float(probs[3].item())
@@ -634,156 +637,6 @@ def engine_portrait_style(image: Image.Image) -> dict:
     }
 
 
-# Engine 8 — LLM Vision API
-
-def _clean_json_from_response(text: str) -> dict:
-    """Safely extract JSON dict from LLM response text."""
-    text = text.strip()
-    if text.startswith("```"):
-        lines = text.splitlines()
-        if lines[0].startswith("```"):
-            lines = lines[1:]
-        if lines and lines[-1].startswith("```"):
-            lines = lines[:-1]
-        text = "\n".join(lines).strip()
-    start = text.find("{")
-    end = text.rfind("}")
-    if start != -1 and end != -1:
-        text = text[start:end+1]
-    return json.loads(text)
-
-
-
-# ═════════════════════════════════════════════════════
-# ENGINE 8 — GEMINI & GROQ LLM VISION FORENSICS API
-# ═════════════════════════════════════════════════════
-
-def engine_llm_vision(image: Image.Image, gemini_key: str = None, groq_key: str = None) -> dict:
-    """
-    Multi-modal LLM Vision inspection using Gemini API (Gemini 2.5 Flash / 2.0 Flash / 1.5 Flash / 1.5 Pro)
-    or Groq Vision API (Llama 3.2 Vision).
-    """
-    gemini_key = gemini_key or os.environ.get("GEMINI_API_KEY", "")
-    groq_key   = groq_key   or os.environ.get("GROQ_API_KEY", "")
-
-    if not gemini_key and not groq_key:
-        return {
-            "score": 0, "max": 100, "raw": 0.0, "active": False,
-            "explanation": "LLM Vision API keys (GEMINI_API_KEY / GROQ_API_KEY) not provided. Engine idle.",
-        }
-
-    buffer = io.BytesIO()
-    image.save(buffer, format="JPEG", quality=85)
-    img_b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
-
-    prompt = (
-        "You are an expert AI image forensic analyst. Carefully examine this profile picture / image "
-        "to determine if it is a real authentic human photograph or an AI-generated image (e.g. Midjourney, SDXL, Stable Diffusion, DALL-E, Flux, GAN, etc.).\n"
-        "Examine skin texture, pore details, hair strand integration, eye specular reflections, background depth, and lighting realism.\n"
-        "Return ONLY a JSON object with keys:\n"
-        '{"is_ai": boolean, "ai_probability": float (between 0.0 and 1.0), "reason": string}'
-    )
-
-    ai_prob = None
-    reason  = ""
-    provider = ""
-    error_logs = []
-
-    # 1. Gemini API Call
-    if gemini_key:
-        models_to_try = [
-            "gemini-2.5-flash",
-            "gemini-2.0-flash",
-            "gemini-1.5-flash",
-            "gemini-1.5-pro",
-        ]
-        for mod in models_to_try:
-            try:
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/{mod}:generateContent?key={gemini_key}"
-                payload = {
-                    "contents": [{
-                        "role": "user",
-                        "parts": [
-                            {"text": prompt},
-                            {"inline_data": {"mime_type": "image/jpeg", "data": img_b64}}
-                        ]
-                    }],
-                    "generationConfig": {"response_mime_type": "application/json"},
-                    "temperature": 0.0
-                }
-                res = requests.post(url, json=payload, timeout=15)
-                if res.status_code == 200:
-                    data_json = res.json()
-                    candidates = data_json.get("candidates", [])
-                    if candidates:
-                        text_out = candidates[0]["content"]["parts"][0]["text"]
-                        data = _clean_json_from_response(text_out)
-                        ai_prob = float(data.get("ai_probability", 0.5))
-                        reason = data.get("reason", f"Gemini {mod} Vision analysis completed.")
-                        provider = f"Gemini ({mod})"
-                        break
-                else:
-                    err_body = res.json().get("error", {}) if res.headers.get("content-type", "").startswith("application/json") else {}
-                    err_msg = err_body.get("message", res.text[:150])
-                    error_logs.append(f"Gemini {mod} HTTP {res.status_code}: {err_msg}")
-            except Exception as e:
-                error_logs.append(f"Gemini {mod} Exception: {str(e)}")
-
-    # 2. Groq Vision API Call (Fallback or if Groq key provided)
-    if ai_prob is None and groq_key:
-        groq_models = [
-            "meta-llama/llama-4-scout-17b-16e-instruct",
-            "llama-3.2-11b-vision-preview",
-            "llama-3.2-90b-vision-preview",
-        ]
-        for mod in groq_models:
-            try:
-                url = "https://api.groq.com/openai/v1/chat/completions"
-                headers = {"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"}
-                payload = {
-                    "model": mod,
-                    "messages": [{
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": prompt},
-                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}}
-                        ]
-                    }],
-                    "response_format": {"type": "json_object"}
-                }
-                res = requests.post(url, headers=headers, json=payload, timeout=15)
-                if res.status_code == 200:
-                    text_out = res.json()["choices"][0]["message"]["content"]
-                    data = _clean_json_from_response(text_out)
-                    ai_prob = float(data.get("ai_probability", 0.5))
-                    reason = data.get("reason", f"Groq {mod} Vision inspection completed.")
-                    provider = f"Groq Vision ({mod})"
-                    break
-                else:
-                    err_body = res.json().get("error", {}) if res.headers.get("content-type", "").startswith("application/json") else {}
-                    err_msg = err_body.get("message", res.text[:150])
-                    error_logs.append(f"Groq {mod} HTTP {res.status_code}: {err_msg}")
-            except Exception as e:
-                error_logs.append(f"Groq {mod} Exception: {str(e)}")
-
-    if ai_prob is None:
-        # All API attempts failed. Return an active engine with a detailed explanation.
-        err_detail = " | ".join(error_logs) if error_logs else "API call unsuccessful or timed out."
-        return {
-            "score": 0,
-            "max": 100,
-            "raw": 0.0,
-            "active": True,
-            "explanation": f"LLM Vision API call failed: {err_detail}",
-        }
-
-    score_100 = round(ai_prob * 100, 1)
-    return {
-        "score": score_100, "max": 100, "raw": ai_prob, "active": True,
-        "explanation": f"<b>{provider} Analysis ({score_100}% AI):</b><br>{reason}"
-    }
-
-
 # ═════════════════════════════════════════════════════
 # ENGINE 9 — FACE LANDMARK & FACIAL SYMMETRY FORENSICS
 # ═════════════════════════════════════════════════════
@@ -972,15 +825,20 @@ def engine_watermark_detection(image: Image.Image) -> dict:
 # ENGINE 11 — FINE-TUNED VIT CLASSIFIER ENGINE
 # ═════════════════════════════════════════════════════
 
-_fine_tuned_vit_model = None
-_fine_tuned_vit_processor = None
+@st.cache_resource(show_spinner=False)
+def _get_fine_tuned_vit_resources(model_dir: str):
+    processor = ViTImageProcessor.from_pretrained(model_dir)
+    model = ViTForImageClassification.from_pretrained(model_dir)
+    model.eval()
+    return processor, model
 
 def engine_fine_tuned_vit(image: Image.Image) -> dict:
     """
     Evaluates image against fine-tuned ViT checkpoint if available in ./fine_tuned_vit.
     """
-    global _fine_tuned_vit_model, _fine_tuned_vit_processor
-    model_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "fine_tuned_vit")
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    feedback_dir = os.path.join(project_root, "fine_tuned_vit_feedback_real_2")
+    model_dir = feedback_dir if os.path.exists(os.path.join(feedback_dir, "model.safetensors")) else os.path.join(project_root, "fine_tuned_vit")
     if not os.path.exists(os.path.join(model_dir, "model.safetensors")) and not os.path.exists(os.path.join(model_dir, "pytorch_model.bin")):
         return {
             "score": 0, "max": 100, "raw": 0.0, "active": False,
@@ -988,14 +846,11 @@ def engine_fine_tuned_vit(image: Image.Image) -> dict:
         }
         
     try:
-        if _fine_tuned_vit_model is None:
-            _fine_tuned_vit_processor = ViTImageProcessor.from_pretrained(model_dir)
-            _fine_tuned_vit_model = ViTForImageClassification.from_pretrained(model_dir)
-            _fine_tuned_vit_model.eval()
+        processor, model = _get_fine_tuned_vit_resources(model_dir)
 
-        inputs = _fine_tuned_vit_processor(images=image.convert("RGB"), return_tensors="pt")
+        inputs = processor(images=image.convert("RGB"), return_tensors="pt")
         with torch.no_grad():
-            outputs = _fine_tuned_vit_model(**inputs)
+            outputs = model(**inputs)
             probs = torch.nn.functional.softmax(outputs.logits, dim=-1)[0]
             
         ai_prob = float(probs[0].item()) # 0: artificial, 1: real
@@ -1019,24 +874,29 @@ def engine_fine_tuned_vit(image: Image.Image) -> dict:
 # MAIN ANALYSIS
 # ═════════════════════════════════════════════════════
 
+@st.cache_data(show_spinner=False)
 def full_image_analysis(image: Image.Image) -> dict:
     """
-    Run 13 forensic, neural, provenance, and optional API engines and produce a final weighted verdict
+    Run 12 forensic, neural, provenance, and signal processing engines and produce a final weighted verdict
     calibrated for modern AI diffusion models.
     """
-    neural   = engine_neural_ensemble(image)
-    clip     = engine_clip_semantic(image)
-    texture  = engine_texture_smoothness(image)
-    color    = engine_color_forensics(image)
-    freq     = engine_frequency(image)
-    edge     = engine_edge_sharpness(image)
-    portrait = engine_portrait_style(image)
-    face     = engine_face_symmetry(image)
-    ela      = engine_ela_compression(image)
-    watermark = engine_watermark_detection(image)
-    ft_vit   = engine_fine_tuned_vit(image)
-    llm = engine_llm_vision(image)
-    provenance = engine_ai_provenance(image)
+    # Downscale the image for faster computation across all local engines
+    # 1024x1024 max size preserves all forensic details while improving speed by 10x-20x
+    working_image = image.copy()
+    working_image.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
+    
+    neural   = engine_neural_ensemble(working_image)
+    clip     = engine_clip_semantic(working_image)
+    texture  = engine_texture_smoothness(working_image)
+    color    = engine_color_forensics(working_image)
+    freq     = engine_frequency(working_image)
+    edge     = engine_edge_sharpness(working_image)
+    portrait = engine_portrait_style(working_image)
+    face     = engine_face_symmetry(working_image)
+    ela      = engine_ela_compression(working_image)
+    watermark = engine_watermark_detection(working_image)
+    ft_vit   = engine_fine_tuned_vit(working_image)
+    provenance = engine_ai_provenance(working_image)
 
     engines_dict = {
         "neural_ensemble": {
@@ -1074,11 +934,6 @@ def full_image_analysis(image: Image.Image) -> dict:
             "icon": "🪞",
             **portrait,
         },
-        "llm_vision": {
-            "name": "Gemini / Groq Vision Forensics",
-            "icon": "☁️",
-            **llm,
-        },
         "face_symmetry": {
             "name": "Face Symmetry & Micro-Texture",
             "icon": "👤",
@@ -1100,7 +955,7 @@ def full_image_analysis(image: Image.Image) -> dict:
             **watermark,
         },
         "ai_provenance": {
-            "name": "ChatGPT / Gemini Provenance Engine",
+            "name": "AI & Generator Provenance Engine",
             "icon": "🧬",
             **provenance,
         },

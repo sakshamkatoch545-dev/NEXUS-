@@ -15,6 +15,9 @@ desktop.ini
 fine_tuned_vit/checkpoint-*/
 fine_tuned_vit_backup_before_feedback/
 fine_tuned_vit_candidate/
+fine_tuned_vit_feedback_real_2/
+logs/
 *_train.log
 *_train.err.log
 .runtime_packages/
+

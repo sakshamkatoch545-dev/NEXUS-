@@ -30,7 +30,7 @@ fields including `ai_probability`, `real_probability`, `confidence`,
 `nearest_generator`, `similarity`, `detected_artifacts`, `feature_scores`,
 `reason`, and `top_matches`.
 
-The current 13-engine order is:
+The current 12-engine order is:
 
 1. Neural Network Ensemble
 2. CLIP Semantic Analysis
@@ -39,12 +39,11 @@ The current 13-engine order is:
 5. Frequency Domain FFT
 6. Background & Edge
 7. Portrait Style
-8. Gemini / Groq Vision Forensics
-9. Face Symmetry & Smoothness
-10. Error Level Analysis
-11. Fine-Tuned ViT Classifier
-12. Watermark Detection
-13. ChatGPT / Gemini Provenance
+8. Face Symmetry & Smoothness
+9. Error Level Analysis
+10. Fine-Tuned ViT Classifier
+11. Watermark Detection
+12. AI & Generator Provenance
 
 ## Fresh-machine build
 

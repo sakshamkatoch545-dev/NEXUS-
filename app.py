@@ -21,46 +21,59 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# Neutral gray theme — low saturation, purple upload accent only
-BG = "#242424"
-PRIMARY = "#525252"
-SECONDARY = "#404040"
-ACCENT_BLUE = "#6b7280"
-ACCENT_CYAN = "#9ca3af"
-SUCCESS = "#a3a3a3"
-DANGER = "#737373"
-WARNING = "#8a8a8a"
-GLASS = "rgba(255, 255, 255, 0.07)"
-GLASS_BORDER = "rgba(255, 255, 255, 0.14)"
-GLASS_BLUR = "blur(22px) saturate(140%)"
-GLOW = "rgba(0,0,0,0.35)"
-MUTED = "#9ca3af"
-SURFACE = "#2e2e2e"
-SURFACE_RAISED = "#383838"
-BORDER = "#404040"
-TEXT = "#d1d5db"
-UPLOAD_DASH = "rgba(124, 107, 158, 0.55)"
-TINT_VIOLET = "rgba(124, 107, 158, 0.12)"
-TINT_CYAN = "rgba(94, 196, 196, 0.08)"
-TINT_BLUE = "rgba(100, 130, 180, 0.07)"
+# Theme Factory — Cyberpunk Multi-Spectrum Obsidian Palette
+BG = "#080c14"
+PRIMARY = "#8b5cf6"
+SECONDARY = "#1e1b4b"
+ACCENT_BLUE = "#3b82f6"
+ACCENT_CYAN = "#06b6d4"
+ACCENT_MAGENTA = "#d946ef"
+ACCENT_AMBER = "#f59e0b"
+ACCENT_EMERALD = "#10b981"
+SUCCESS = "#10b981"
+DANGER = "#ef4444"
+WARNING = "#f59e0b"
+GLASS = "rgba(15, 23, 42, 0.65)"
+GLASS_BORDER = "rgba(217, 70, 239, 0.25)"
+GLASS_BLUR = "blur(24px) saturate(160%)"
+GLOW = "rgba(217, 70, 239, 0.35)"
+MUTED = "#cbd5e1"
+SURFACE = "#111827"
+SURFACE_RAISED = "#1f2937"
+BORDER = "rgba(139, 92, 246, 0.22)"
+TEXT = "#ffffff"
+UPLOAD_DASH = "rgba(217, 70, 239, 0.6)"
+TINT_VIOLET = "rgba(139, 92, 246, 0.18)"
+TINT_CYAN = "rgba(6, 182, 212, 0.15)"
+TINT_MAGENTA = "rgba(217, 70, 239, 0.18)"
+TINT_AMBER = "rgba(245, 158, 11, 0.14)"
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 
 
-def _image_to_b64(img: Image.Image, fmt: str = "PNG") -> str:
+def _image_to_b64(img: Image.Image, fmt: str = "JPEG") -> str:
     buf = BytesIO()
-    img.save(buf, format=fmt)
+    # Downscale for preview to avoid massive base64 strings and memory lag
+    working_img = img.copy()
+    working_img.thumbnail((1200, 1200), Image.Resampling.BILINEAR)
+    if working_img.mode != "RGB":
+        working_img = working_img.convert("RGB")
+    working_img.save(buf, format=fmt, quality=85)
     return base64.b64encode(buf.getvalue()).decode("utf-8")
 
+@st.cache_data(show_spinner=False)
+def _read_css_files():
+    with open(os.path.join(_BASE, "style.css"), encoding="utf-8") as f:
+        css_content = f.read()
+    with open(os.path.join(_BASE, "design-system.css"), encoding="utf-8") as f:
+        ds_css = f.read()
+    return css_content, ds_css
 
-with open(os.path.join(_BASE, "style.css"), encoding="utf-8") as f:
-    css_content = f.read()
-with open(os.path.join(_BASE, "design-system.css"), encoding="utf-8") as f:
-    ds_css = f.read()
+css_content, ds_css = _read_css_files()
 
 st.markdown(f"""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap');
 
 :root {{
     --bg: {BG};
@@ -68,6 +81,9 @@ st.markdown(f"""
     --secondary: {SECONDARY};
     --accent-blue: {ACCENT_BLUE};
     --accent-cyan: {ACCENT_CYAN};
+    --accent-magenta: {ACCENT_MAGENTA};
+    --accent-amber: {ACCENT_AMBER};
+    --accent-emerald: {ACCENT_EMERALD};
     --success: {SUCCESS};
     --danger: {DANGER};
     --warning: {WARNING};
@@ -82,8 +98,48 @@ st.markdown(f"""
     --upload-dash: {UPLOAD_DASH};
     --tint-violet: {TINT_VIOLET};
     --tint-cyan: {TINT_CYAN};
-    --tint-blue: {TINT_BLUE};
+    --tint-magenta: {TINT_MAGENTA};
+    --tint-amber: {TINT_AMBER};
 }}
+
+/* ── Large Primary Action Button ── */
+button[kind="primary"], [data-testid="stBaseButton-primary"] {{
+    min-height: 4.5rem !important;
+    font-size: 1.25rem !important;
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.1em !important;
+    text-transform: uppercase;
+    border-radius: 12px !important;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent-magenta) 100%) !important;
+    border: none !important;
+    box-shadow: 0 8px 32px rgba(139, 92, 246, 0.3) !important;
+    transition: all 0.3s ease !important;
+}}
+button[kind="primary"]:hover, [data-testid="stBaseButton-primary"]:hover {{
+    transform: translateY(-2px) !important;
+    box-shadow: 0 12px 40px rgba(217, 70, 239, 0.4) !important;
+    filter: brightness(1.1) !important;
+}}
+button[kind="primary"] p, [data-testid="stBaseButton-primary"] p {{
+    font-size: 1.25rem !important;
+    font-weight: 700 !important;
+}}
+
+/* ── Engine Grid Layout ── */
+.engine-grid {{
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}}
+.engine-grid .engine-card {{
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between;
+}}
+
 {css_content}
 {ds_css}
 </style>
@@ -95,10 +151,13 @@ st.markdown(
         <div class="glass-orb glass-orb-1"></div>
         <div class="glass-orb glass-orb-2"></div>
         <div class="glass-orb glass-orb-3"></div>
+        <div class="glass-orb glass-orb-4"></div>
         <div class="natural-light natural-light-main"></div>
         <div class="natural-light natural-light-fill"></div>
         <div class="color-tint color-tint-violet"></div>
+        <div class="color-tint color-tint-magenta"></div>
         <div class="color-tint color-tint-cyan"></div>
+        <div class="color-tint color-tint-amber"></div>
     </div>
     """,
     unsafe_allow_html=True,
@@ -153,18 +212,8 @@ def _clear_scan_state(clear_upload: bool = False):
 
 
 def _render_engine_grid(result: dict):
-    """13-engine score cards from a completed scan."""
-    st.markdown("""
-    <div class="section-heading">
-        <span class="sh-icon">🔬</span>
-        <span class="sh-text">13-Engine Forensics</span>
-        <span class="sh-line"></span>
-    </div>
-    """, unsafe_allow_html=True)
-
-    eng_col1, eng_col2 = st.columns(2, gap="medium")
-    eng_columns = [eng_col1, eng_col2]
-
+    """12-engine score cards from a completed scan."""
+    html_cards = []
     for idx, (_key, eng) in enumerate(result["engines"].items()):
         s = eng["score"]
         mx = eng["max"]
@@ -179,26 +228,37 @@ def _render_engine_grid(result: dict):
         else:
             badge_cls, fill_cls, badge_txt = "badge-low", "efill-lo", "LOW AI RISK"
 
-        with eng_columns[idx % 2]:
-            st.markdown(f"""
-            <div class="engine-card" style="animation-delay:{(idx % 6) * 0.06:.2f}s">
-                <div class="engine-header">
-                    <span class="engine-name">{eng['name']}</span>
-                    <span class="engine-badge {badge_cls}">{badge_txt}</span>
-                </div>
-                <div class="engine-score-block">
-                    <div class="engine-score-main">
-                        <span class="engine-val">{s:.0f}</span>
-                        <span class="engine-max">/{mx}</span>
-                    </div>
-                    <div class="engine-pct-sub">{ai_pct_eng:.0f}% AI &nbsp;/&nbsp; {human_pct_eng:.0f}% HUMAN</div>
-                </div>
-                <div class="engine-bar">
-                    <div class="engine-fill {fill_cls}" style="width:{pct:.1f}%"></div>
-                </div>
-                <div class="engine-explain">{eng['explanation']}</div>
-            </div>
-            """, unsafe_allow_html=True)
+        icon = eng.get("icon", "🔬")
+        card_html = (
+            f'<div class="engine-card" style="animation-delay:{(idx % 6) * 0.06:.2f}s">'
+            f'<div class="engine-header">'
+            f'<span class="engine-name">{icon} {eng["name"]}</span>'
+            f'<span class="engine-badge {badge_cls}">{badge_txt}</span>'
+            f'</div>'
+            f'<div class="engine-score-block">'
+            f'<div class="engine-score-main">'
+            f'<span class="engine-val">{s:.0f}</span>'
+            f'<span class="engine-max">/{mx}</span>'
+            f'</div>'
+            f'<div class="engine-pct-sub">{ai_pct_eng:.0f}% AI &nbsp;/&nbsp; {human_pct_eng:.0f}% HUMAN</div>'
+            f'</div>'
+            f'<div class="engine-bar">'
+            f'<div class="engine-fill {fill_cls}" style="width:{pct:.1f}%"></div>'
+            f'</div>'
+            f'<div class="engine-explain">{eng["explanation"]}</div>'
+            f'</div>'
+        )
+        html_cards.append(card_html)
+
+    grid_html = (
+        '<div class="section-heading">'
+        '<span class="sh-icon">🔬</span>'
+        '<span class="sh-text">12-Engine Forensics</span>'
+        '<span class="sh-line"></span>'
+        '</div>'
+        f'<div class="engine-grid">{"".join(html_cards)}</div>'
+    )
+    st.markdown(grid_html, unsafe_allow_html=True)
 
 
 ENGINES_INFO = [
@@ -246,45 +306,39 @@ ENGINES_INFO = [
     },
     {
         "num": "08",
-        "name": "Gemini / Groq Vision Forensics",
-        "tag": "Multimodal API Analysis",
-        "summary": "Sends the image to a vision LLM (Gemini or Groq) for qualitative review of lighting, anatomy, and scene logic. Adds human-like reasoning where pixel-only checks can miss subtle flaws.",
-    },
-    {
-        "num": "09",
         "name": "Face Symmetry & Micro-Texture",
         "tag": "Facial Landmark & Blur",
         "summary": "Analyzes facial symmetry, pore-level texture, and landmark spacing. GAN and diffusion faces often show waxy skin, uneven eyes, or overly perfect symmetry.",
     },
     {
-        "num": "10",
+        "num": "09",
         "name": "Error Level Analysis (ELA)",
         "tag": "JPEG Compression Residual",
         "summary": "Recompresses the JPEG and maps compression error residuals. Tampered regions, double saves, or inconsistent re-encoding stand out compared with untouched camera files.",
     },
     {
-        "num": "11",
+        "num": "10",
         "name": "Fine-Tuned ViT Classifier",
         "tag": "Local Dataset Trained Model",
         "summary": "A Vision Transformer trained on confirmed real and AI portraits from this project’s dataset. Weighted heavily when active—it targets hyperrealistic AI faces that fool generic public models.",
     },
     {
-        "num": "12",
+        "num": "11",
         "name": "Watermark Detection",
         "tag": "Margin Text & Logo Search",
         "summary": "Scans margins and corners for generator watermarks, logos, or embedded text left by tools like Midjourney or DALL·E. A direct provenance signal when visible marks remain.",
     },
     {
-        "num": "13",
-        "name": "ChatGPT / Gemini Provenance",
+        "num": "12",
+        "name": "AI & Generator Provenance",
         "tag": "Generator-Family Compatibility",
-        "summary": "Matches visual fingerprints against known generator families (Stable Diffusion, SDXL, DALL·E, etc.). Helps attribute likely source model family, not just AI vs. human.",
+        "summary": "Matches visual fingerprints against known generator families (Stable Diffusion, SDXL, Midjourney, DALL·E, etc.). Helps attribute likely source model family, not just AI vs. human.",
     },
 ]
 
 
 def _render_engine_catalog():
-    """Clickable list of all 13 engines — tap any row for a short summary."""
+    """Clickable list of all 12 engines — tap any row for a short summary."""
     st.markdown(
         '<p class="engine-catalog-hint">Click any engine to see what it uses and how it helps detection.</p>',
         unsafe_allow_html=True,
@@ -502,8 +556,8 @@ def _go_execution(clear_upload: bool = True):
 def _render_execution_header():
     """Page header for the execution / upload screen."""
     _render_page_subheader(
-        "Upload image payload · run 13-engine scan",
-        ["System ready", "13 engines armed", "PNG · JPG · WEBP"],
+        "Upload image payload · run 12-engine scan",
+        ["System ready", "12 engines armed", "PNG · JPG · WEBP"],
         live=True,
     )
 
@@ -515,11 +569,11 @@ def _render_image_lightbox(image: Image.Image, meta: dict, toggle_id: str):
     <div class="img-preview-wrap">
         <input type="checkbox" id="{toggle_id}" class="img-zoom-toggle">
         <label for="{toggle_id}" class="img-preview-trigger">
-            <img src="data:image/png;base64,{img_b64}" class="preview-thumb" />
+            <img src="data:image/jpeg;base64,{img_b64}" class="preview-thumb" />
             <div class="img-preview-hint">🔍 Click for full-resolution preview</div>
         </label>
         <label for="{toggle_id}" class="img-zoom-overlay">
-            <img src="data:image/png;base64,{img_b64}" class="img-zoom-full" onclick="event.stopPropagation();" />
+            <img src="data:image/jpeg;base64,{img_b64}" class="img-zoom-full" onclick="event.stopPropagation();" />
             <div class="img-zoom-meta">{meta['width']} × {meta['height']}px · {meta['fmt']} · {meta['name']}</div>
             <div class="img-zoom-close-hint">click anywhere to close</div>
         </label>
@@ -534,41 +588,88 @@ def _render_image_lightbox(image: Image.Image, meta: dict, toggle_id: str):
 if st.session_state.page == "landing":
     st.markdown(
         """
-        <div class="landing-page page-fade">
-        <h1 class="landing-hero">NEXUS+ <span class="version-badge">v6.0</span></h1>
-        <p class="landing-tagline">13-engine AI image forensics · deep multi-domain inspection</p>
+        <div class="liquid-hero-frame landing-page page-fade" style="text-align: center;">
+            <div class="status-badge-wrap">
+                <span class="status-dot"></span>
+                <span class="status-text">12 FORENSIC ENGINES ONLINE</span>
+            </div>
+            <h1 class="landing-hero">NEXUS+ <span class="version-badge">v6.0</span></h1>
+            <p class="landing-tagline"><b>Advanced AI Image Forensics</b></p>
+            <p class="landing-subtagline">Calibrated for <b>Diffusion Models</b> & <b>GANs</b></p>
+        </div>
         """,
         unsafe_allow_html=True,
     )
 
     st.markdown("""
-    <div class="landing-features">
-        <div class="landing-feature"><span class="lf-num">13</span><span class="lf-label">Detection engines</span></div>
-        <div class="landing-feature"><span class="lf-num">FFT</span><span class="lf-label">Frequency analysis</span></div>
-        <div class="landing-feature"><span class="lf-num">ViT</span><span class="lf-label">Fine-tuned classifier</span></div>
-        <div class="landing-feature"><span class="lf-num">CLIP</span><span class="lf-label">Semantic forensics</span></div>
+    <div class="landing-metrics-bar">
+        <div class="l-metric-card">
+            <span class="lm-val">12</span>
+            <span class="lm-lbl">Detection Engines</span>
+        </div>
+        <div class="l-metric-card">
+            <span class="lm-val">FFT + ELA</span>
+            <span class="lm-lbl">Spectral Forensics</span>
+        </div>
+        <div class="l-metric-card">
+            <span class="lm-val">ViT + CLIP</span>
+            <span class="lm-lbl">Neural Consensus</span>
+        </div>
+        <div class="l-metric-card">
+            <span class="lm-val">Provenance</span>
+            <span class="lm-lbl">Generator Attribution</span>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
-    _, cta_col, _ = st.columns([1, 1.2, 1])
+    st.markdown("""
+    <div class="landing-cta-box">
+        <h3 class="cta-title">Ready for Forensic Inspection?</h3>
+        <p class="cta-desc">Upload any profile picture, media render, or suspect photo to generate a comprehensive 12-engine threat score breakdown.</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    _, cta_col, _ = st.columns([1, 1.3, 1])
     with cta_col:
-        if st.button("Begin Forensic Scan", use_container_width=True, type="primary"):
+        if st.button("⚡  Begin Forensic Scan", use_container_width=True, type="primary"):
             st.session_state.page = "execute"
             st.rerun()
 
-    st.markdown(
-        """
-        <div class="landing-note glass-card">
-            <div class="glass-title">Platform</div>
-            <p class="landing-copy">
-                Upload a profile or media image to run a full forensic sweep across neural, spectral,
-                texture, and provenance engines. Results include human vs AI breakdown and per-engine scores.
-            </p>
+    st.markdown("""
+    <div class="landing-pillars-grid">
+        <div class="pillar-card">
+            <div class="pillar-icon">🧠</div>
+            <div class="pillar-title">Neural & Semantic</div>
+            <div class="pillar-desc">Combines fine-tuned Vision Transformers with OpenAI CLIP zero-shot semantic matching to flag synthetic rendering patterns.</div>
         </div>
+        <div class="pillar-card">
+            <div class="pillar-icon">📊</div>
+            <div class="pillar-title">Spectral & Frequency</div>
+            <div class="pillar-desc">Calculates 2D Fast Fourier Transforms (FFT) and multi-scale texture smoothness to detect high-frequency sensor noise loss.</div>
         </div>
-        """,
-        unsafe_allow_html=True,
+        <div class="pillar-card">
+            <div class="pillar-icon">🖼️</div>
+            <div class="pillar-title">Compression & ELA</div>
+            <div class="pillar-desc">Re-compresses JPEG error levels (ELA) and analyzes border text/watermarks to expose generator artifacts and tampered regions.</div>
+        </div>
+        <div class="pillar-card">
+            <div class="pillar-icon">🧬</div>
+            <div class="pillar-title">Generator Provenance</div>
+            <div class="pillar-desc">Matches visual fingerprints against known generator families (Stable Diffusion, Midjourney, DALL-E, Flux) for origin attribution.</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    chips = "".join(
+        f'<span class="engine-chip" style="margin: 0.2rem;">{eng["name"]}</span>'
+        for eng in ENGINES_INFO
     )
+    st.markdown(f"""
+    <div class="glass-card" style="text-align:center; margin-top: 1.5rem;">
+        <div class="glass-title" style="justify-content:center;">🛡️ 12 Active Forensic Inspection Modules</div>
+        <div class="showcase-chip-grid">{chips}</div>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 # ══════════════════════════════════════════════════════════════
@@ -582,20 +683,11 @@ elif st.session_state.page == "engines":
     )
     _render_page_subheader(
         "Forensic modules in every scan",
-        ["13 modules", "Neural · Spectral · Provenance"],
+        ["12 modules", "Neural · Spectral · Provenance"],
     )
-
-    _render_engine_catalog()
 
     if _has_live_scan():
         result = st.session_state.result
-        st.markdown("""
-        <div class="section-heading engines-section-heading">
-            <span class="sh-icon">🔬</span>
-            <span class="sh-text">Live Scan Results</span>
-            <span class="sh-line"></span>
-        </div>
-        """, unsafe_allow_html=True)
         st.markdown(
             f"<p class='landing-tagline'>{result['verdict_label']} · "
             f"{result['confidence_score']:.1f}% AI threat · per-engine scores below</p>",
@@ -614,18 +706,31 @@ elif st.session_state.page == "engines":
                 if st.button("New scan", use_container_width=True, type="secondary"):
                     _go_execution(clear_upload=True)
                     st.rerun()
-    elif st.session_state.scan_ready:
-        _, exec_col, _ = st.columns([1, 1.2, 1])
-        with exec_col:
-            if st.button("⚡  Execute Forensic Scan", use_container_width=True, type="primary"):
-                st.session_state.page = "execute"
-                st.rerun()
+
+        st.markdown(
+            '<div class="section-heading" style="margin-top:2.5rem;">'
+            '<span class="sh-icon">📖</span>'
+            '<span class="sh-text">Engine Specifications & Architecture</span>'
+            '<span class="sh-line"></span>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        _render_engine_catalog()
     else:
-        _, exec_col, _ = st.columns([1, 1.2, 1])
-        with exec_col:
-            if st.button("Go to execution page →", use_container_width=True, type="primary"):
-                st.session_state.page = "execute"
-                st.rerun()
+        _render_engine_catalog()
+
+        if st.session_state.scan_ready:
+            _, exec_col, _ = st.columns([1, 1.2, 1])
+            with exec_col:
+                if st.button("⚡  Execute Forensic Scan", use_container_width=True, type="primary"):
+                    st.session_state.page = "execute"
+                    st.rerun()
+        else:
+            _, exec_col, _ = st.columns([1, 1.2, 1])
+            with exec_col:
+                if st.button("Go to execution page →", use_container_width=True, type="primary"):
+                    st.session_state.page = "execute"
+                    st.rerun()
 
 
 # ══════════════════════════════════════════════════════════════
@@ -697,7 +802,7 @@ elif st.session_state.page == "execute":
         )
         st.markdown(f"""
         <div class="glass-card" style="text-align:center;">
-            <div class="glass-title" style="justify-content:center;">13 Detection Engines Ready</div>
+            <div class="glass-title" style="justify-content:center;">12 Detection Engines Ready</div>
             <div class="engine-chip-strip">{chips}</div>
         </div>
         """, unsafe_allow_html=True)
@@ -707,7 +812,7 @@ elif st.session_state.page == "execute":
             with st.spinner(""):
                 st.markdown(
                     "<div class='scan-pulse' style='text-align:center;'>"
-                    "[ Forensic Scan In Progress — 13 Engines Active ]</div>",
+                    "[ Forensic Scan In Progress — 12 Engines Active ]</div>",
                     unsafe_allow_html=True,
                 )
                 result = full_image_analysis(image)
@@ -806,7 +911,7 @@ elif st.session_state.page == "results":
             </div>
             <div style="margin-top:0.8rem;font-family:'JetBrains Mono',monospace;font-size:0.72rem;
                 color:rgba(226,232,240,.72);letter-spacing:0.06em;">
-                13-ENGINE AVERAGE: {ai_pct:.1f}% AI · {human_pct:.1f}% HUMAN
+                12-ENGINE AVERAGE: {ai_pct:.1f}% AI · {human_pct:.1f}% HUMAN
                 <span style="opacity:0.65;">({ai_votes} HIGH-RISK · {human_votes} LOWER-RISK)</span>
             </div>
         </div>
@@ -838,7 +943,7 @@ elif st.session_state.page == "results":
 
     _, eng_cta, _ = st.columns([1, 1.2, 1])
     with eng_cta:
-        if st.button("View 13-engine breakdown →", use_container_width=True, type="primary"):
+        if st.button("View 12-engine breakdown →", use_container_width=True, type="primary"):
             st.session_state.page = "engines"
             st.rerun()
 
@@ -849,7 +954,7 @@ elif st.session_state.page == "results":
 
 st.markdown(
     '<div class="footer-text">NEXUS+ <span>·</span> AI Detector v6.0 <span>·</span> '
-    '13-Engine Multi-Domain Forensics <span>·</span> '
+    '12-Engine Multi-Domain Forensics <span>·</span> '
     'HuggingFace + OpenAI CLIP + FFT</div>',
     unsafe_allow_html=True,
 )

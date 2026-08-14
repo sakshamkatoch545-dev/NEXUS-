@@ -7,7 +7,7 @@
   
   <br><br>
   <h1>🔬 NEXUS+ AI Detector v6.0</h1>
-  <p><strong>Advanced 11-Engine Forensic Inspection Platform for Synthetic Media Detection</strong></p>
+  <p><strong>Advanced 12-Engine Forensic Inspection Platform for Synthetic Media Detection</strong></p>
   <br>
   <img src="screenshots/nexus_idle.png" alt="NEXUS+ App Screenshot - Idle State" width="90%">
   <br>
@@ -23,7 +23,7 @@
 NEXUS+ solves this by cross-referencing **high-level semantic embeddings** with **microscopic, low-level signal processing** (Fourier transforms, Error Level Analysis, and micro-texture variance) to expose the invisible fingerprints that every AI generator leaves behind.
 
 ### ✨ Key Highlights
-- 🧠 **11 Specialized Detection Engines** — deep, multi-domain analysis
+- 🧠 **12 Specialized Detection Engines** — deep, multi-domain analysis
 - ⚡ **Instant Verdicts** — AI-Generated / Uncertain / Authentic  
 - 📊 **Per-Engine Breakdown** — see exactly what each engine found
 - 🎨 **Premium Glassmorphism UI** — modern, dark, and strikingly beautiful
@@ -56,13 +56,13 @@ On the **left column**, you will see the **Image Payload** card. Drag & drop any
   <em>Left: An AI-generated image (high saturation, unnaturally smooth textures, studio backdrop) — Right: A real photograph with natural lighting and organic detail</em>
 </p>
 
-After uploading, a preview of your image appears inside the card. Below it are the **11 Active Engines** listed — all 11 engines will be engaged once you fire the scan.
+After uploading, a preview of your image appears inside the card. Below it are the **12 Active Engines** listed — all 12 engines will be engaged once you fire the scan.
 
 ---
 
 ### Step 3 — Execute Forensic Scan
 
-Click the glowing **⚡ Execute Forensic Scan** button. The system begins running all 11 engines in parallel, performing:
+Click the glowing **⚡ Execute Forensic Scan** button. The system begins running all 12 engines in parallel, performing:
 - Neural classification via HuggingFace pipelines
 - CLIP zero-shot semantic embedding comparison  
 - Computer vision analysis (FFT, ELA, texture, symmetry)
@@ -98,13 +98,13 @@ The **Human vs AI Breakdown** tab shows:
 
 ### Step 5 — Drill Into Each Engine
 
-Switch to the **🔬 11-Engine Forensics** tab for the full deep-dive:
+Switch to the **🔬 12-Engine Forensics** tab for the full deep-dive:
 
 <p align="center">
   <img src="screenshots/nexus_engines.png" alt="NEXUS+ App Screenshot - Engine Breakdown" width="90%">
 </p>
 <p align="center">
-  <em>The 11-Engine Forensics tab — each engine shows its own score, risk badge, progress bar, and detailed explanation</em>
+  <em>The 12-Engine Forensics tab — each engine shows its own score, risk badge, progress bar, and detailed explanation</em>
 </p>
 
 Each engine card shows:
