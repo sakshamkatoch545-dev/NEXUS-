@@ -11,7 +11,10 @@ from io import BytesIO
 import streamlit as st
 from PIL import Image
 
+import importlib
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+import src.detector
+importlib.reload(src.detector)
 from src.detector import full_image_analysis  # noqa: E402
 
 st.set_page_config(
@@ -61,7 +64,6 @@ def _image_to_b64(img: Image.Image, fmt: str = "JPEG") -> str:
     working_img.save(buf, format=fmt, quality=85)
     return base64.b64encode(buf.getvalue()).decode("utf-8")
 
-@st.cache_data(show_spinner=False)
 def _read_css_files():
     with open(os.path.join(_BASE, "style.css"), encoding="utf-8") as f:
         css_content = f.read()
@@ -850,7 +852,7 @@ elif st.session_state.page == "results":
     )
 
     # ── Back / New Scan control ──
-    back_col, _spacer = st.columns([1, 4])
+    _, back_col, _ = st.columns([1, 1.4, 1])
     with back_col:
         new_scan = st.button("←  New Scan", type="secondary", use_container_width=True)
     if new_scan:

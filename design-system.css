@@ -824,3 +824,144 @@ button[data-testid="baseButton-secondary"] {
     from { opacity: 0; transform: translateY(12px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   DESIGN SYSTEM · MOBILE & PHONE RESPONSIVENESS (6.3" Calibrated)
+   ══════════════════════════════════════════════════════════════ */
+
+@media screen and (max-width: 768px) {
+    /* Header nav spacer columns collapse on phone to give 100% width */
+    .top-header-wrap + div[data-testid="stHorizontalBlock"] > [data-testid="column"]:first-child,
+    .top-header-wrap + div[data-testid="stHorizontalBlock"] > [data-testid="column"]:last-child {
+        display: none !important;
+    }
+    .top-header-wrap + div[data-testid="stHorizontalBlock"] > [data-testid="column"]:nth-child(2) {
+        width: 100% !important;
+        flex: 1 1 100% !important;
+        max-width: 100% !important;
+    }
+    .top-header-wrap + div[data-testid="stHorizontalBlock"] {
+        max-width: 100% !important;
+        margin: 0 auto 1.25rem !important;
+    }
+    .top-header-wrap + div[data-testid="stHorizontalBlock"] [data-testid="column"]:nth-child(2) .stButton > button {
+        font-size: 0.68rem !important;
+        padding: 0.6rem 0.45rem !important;
+        min-height: 2.85rem !important;
+        letter-spacing: 0.08em !important;
+        border-radius: 10px !important;
+    }
+    .top-header-wrap + div[data-testid="stHorizontalBlock"] [data-testid="column"]:nth-child(2) [data-testid="stHorizontalBlock"] {
+        gap: 0.45rem !important;
+    }
+
+    /* Execution page 3-column wrapper collapses side spacers */
+    div[data-testid="stHorizontalBlock"]:has(.upload-card-head) > [data-testid="column"]:first-child,
+    div[data-testid="stHorizontalBlock"]:has(.upload-card-head) > [data-testid="column"]:last-child {
+        display: none !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.upload-card-head) > [data-testid="column"]:nth-child(2) {
+        width: 100% !important;
+        flex: 1 1 100% !important;
+        max-width: 100% !important;
+    }
+
+    /* Results page columns stack cleanly on mobile */
+    div[data-testid="stHorizontalBlock"]:has(.result-thumb-card) {
+        flex-direction: column !important;
+        gap: 0.95rem !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.result-thumb-card) > [data-testid="column"] {
+        width: 100% !important;
+        flex: 1 1 100% !important;
+        max-width: 100% !important;
+    }
+
+    /* Top engines hero & bar */
+    .top-header-wrap {
+        max-width: 100% !important;
+        margin: 0.2rem auto 0.75rem !important;
+    }
+    .top-engines-bar {
+        padding: 0.65rem 0.75rem 0.75rem !important;
+        border-radius: 12px !important;
+    }
+    .top-engines-bar-execute {
+        padding: 0.95rem 0.85rem 1.05rem !important;
+    }
+    .top-engines-hero {
+        font-size: 1.85rem !important;
+        letter-spacing: 0.08em !important;
+    }
+    .top-engines-hero .version-badge {
+        font-size: 0.92rem !important;
+        letter-spacing: 0.1em !important;
+    }
+    .top-engine-chip {
+        font-size: 0.54rem !important;
+        padding: 0.22rem 0.42rem !important;
+    }
+
+    /* Subheaders and pills */
+    .scan-page-subheader {
+        margin: 0.15rem 0 1.25rem !important;
+    }
+    .scan-header-tagline {
+        font-size: 0.62rem !important;
+        margin: 0 0 0.55rem !important;
+    }
+    .scan-header-bar {
+        padding: 0.55rem 0.9rem !important;
+        gap: 0.35rem 0.5rem !important;
+        border-radius: 24px !important;
+    }
+    .scan-header-pill {
+        font-size: 0.56rem !important;
+        letter-spacing: 0.06em !important;
+    }
+
+    /* Primary and Secondary button scaling */
+    .stButton > button[kind="primary"],
+    button[data-testid="baseButton-primary"] {
+        min-height: 3.4rem !important;
+        font-size: 1.02rem !important;
+        letter-spacing: 0.07em !important;
+        border-radius: 12px !important;
+    }
+    .stButton > button[kind="secondary"],
+    button[data-testid="baseButton-secondary"] {
+        min-height: 2.85rem !important;
+        font-size: 0.88rem !important;
+        border-radius: 10px !important;
+    }
+
+    /* Background Orbs for mobile performance */
+    .glass-orb-1, .glass-orb-2, .glass-orb-3, .glass-orb-4 {
+        filter: blur(25px) !important;
+        opacity: 0.35 !important;
+        transform: scale(0.6) !important;
+    }
+
+    /* Accordion Details */
+    .engine-detail-body {
+        padding: 0.65rem 0.85rem 0.85rem 1.8rem !important;
+        font-size: 0.7rem !important;
+    }
+    .engine-details-summary {
+        padding: 0.75rem 0.85rem !important;
+    }
+
+    /* Top Verdict Note / Bar */
+    .top-verdict-bar {
+        padding: 0.5rem 0.75rem !important;
+        gap: 0.35rem 0.6rem !important;
+    }
+    .top-verdict-label {
+        font-size: 0.62rem !important;
+    }
+    .top-verdict-detail {
+        font-size: 0.56rem !important;
+    }
+}
+
+

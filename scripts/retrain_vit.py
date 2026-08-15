@@ -341,6 +341,13 @@ def train():
         train_raw.extend(feedback_val)
         random.shuffle(train_raw)
 
+    # 5x oversample real feedback photos (selfies/camera photos) to teach the model
+    # mobile ISP denoising, lighting and focal geometry of genuine camera photos
+    feedback_train = [s for s in train_raw if Path(s[0]).name.startswith("feedback_")]
+    for _ in range(4):
+        train_raw.extend(feedback_train)
+    random.shuffle(train_raw)
+
     train_samples = [(p, lbl) for p, lbl, _ in train_raw]
     val_samples   = [(p, lbl) for p, lbl, _ in val_raw]
     train_weights = [w for _, _, w in train_raw]
