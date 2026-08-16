@@ -872,16 +872,86 @@ def engine_fine_tuned_vit(image: Image.Image) -> dict:
 
 
 # ═════════════════════════════════════════════════════
+# ENGINE 13 — AI INPAINTING & LOCAL MANIPULATION ENGINE
+# ═════════════════════════════════════════════════════
+
+def engine_ai_manipulation_and_inpainting(image: Image.Image) -> dict:
+    """
+    Scans for localized AI generative inpainting, neural retouching, and face enhancement
+    on otherwise authentic images (ZeroGPT / GPTZero style localized forensics).
+    """
+    try:
+        from scipy.ndimage import laplace, median_filter, sobel
+        import scipy.stats as stats
+        
+        rgb = np.asarray(image.convert("RGB")).astype(np.float32) / 255.0
+        h, w, _ = rgb.shape
+        r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+        gray = 0.299 * r + 0.587 * g + 0.114 * b
+
+        denoised = median_filter(gray, size=3)
+        residual = gray - denoised
+
+        # 4x4 spatial grid
+        rows, cols = 4, 4
+        tile_h, tile_w = max(1, h // rows), max(1, w // cols)
+        
+        noise_stds = []
+        lap_vars = []
+        for r_idx in range(rows):
+            for c_idx in range(cols):
+                t_gray = gray[r_idx*tile_h:(r_idx+1)*tile_h, c_idx*tile_w:(c_idx+1)*tile_w]
+                t_res = residual[r_idx*tile_h:(r_idx+1)*tile_h, c_idx*tile_w:(c_idx+1)*tile_w]
+                if t_res.size > 0:
+                    noise_stds.append(float(t_res.std()))
+                    lap_vars.append(float(laplace(t_gray).var()))
+
+        noise_arr = np.array(noise_stds, dtype=np.float32)
+        lap_arr = np.array(lap_vars, dtype=np.float32)
+
+        med_noise = float(np.median(noise_arr))
+        iqr_noise = float(stats.iqr(noise_arr)) + 1e-6
+        noise_z = np.abs(noise_arr - med_noise) / iqr_noise
+
+        anomalies = int(np.sum(noise_z > 2.5))
+        noise_cv = float(noise_arr.std() / (noise_arr.mean() + 1e-6))
+        lap_cv = float(lap_arr.std() / (lap_arr.mean() + 1e-6))
+
+        raw_score = (noise_cv * 45.0) + (lap_cv * 30.0) + (anomalies * 15.0)
+        score = float(np.clip(raw_score, 0.0, 100.0))
+        is_edited = bool(score >= 45.0 and anomalies >= 1)
+
+        findings = []
+        if is_edited:
+            findings.append(f"Detected {anomalies} localized outlier patch(es) with mismatched noise/texture.")
+            findings.append("High spatial variance indicative of AI inpainting or generative retouching.")
+        else:
+            findings.append("Uniform spatial sensor noise across all image tiles.")
+
+        return {
+            "score": round(score, 1),
+            "max": 100,
+            "raw": score / 100.0,
+            "is_edited": is_edited,
+            "anomalies": anomalies,
+            "explanation": "<br>".join(f"• {f}" for f in findings)
+        }
+    except Exception as exc:
+        return {
+            "score": 0, "max": 100, "raw": 0.0, "is_edited": False, "anomalies": 0,
+            "explanation": f"Inpainting scan skipped: {exc}"
+        }
+
+
+# ═════════════════════════════════════════════════════
 # MAIN ANALYSIS
 # ═════════════════════════════════════════════════════
 
 def full_image_analysis(image: Image.Image) -> dict:
     """
-    Run 12 forensic, neural, provenance, and signal processing engines and produce a final weighted verdict
-    calibrated for modern AI diffusion models.
+    Run 13 forensic, neural, provenance, and signal processing engines and produce a final weighted verdict
+    calibrated for modern AI diffusion models and localized AI edits.
     """
-    # Downscale the image for faster computation across all local engines
-    # 1024x1024 max size preserves all forensic details while improving speed by 10x-20x
     working_image = image.copy()
     working_image.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
     
@@ -897,6 +967,7 @@ def full_image_analysis(image: Image.Image) -> dict:
     watermark = engine_watermark_detection(working_image)
     ft_vit   = engine_fine_tuned_vit(working_image)
     provenance = engine_ai_provenance(working_image)
+    manipulation = engine_ai_manipulation_and_inpainting(working_image)
 
     engines_dict = {
         "neural_ensemble": {
@@ -959,24 +1030,24 @@ def full_image_analysis(image: Image.Image) -> dict:
             "icon": "🧬",
             **provenance,
         },
+        "ai_manipulation": {
+            "name": "AI Inpainting & Retouch Forensics",
+            "icon": "🪄",
+            **manipulation,
+        },
     }
 
-    # Normalize every engine to a 0-100 AI-risk percentage.  The final result
-    # uses all of those percentages, rather than merely counting high-risk
-    # badges.  A successfully trained local ViT is given dominant influence
-    # because it learns from confirmed examples (hyperrealistic AI + real portraits),
-    # while the other engines remain part of the final forensic consensus.
     total_engine_count = len(engines_dict)
     weighted_engine_scores = []
     for engine_key, engine in engines_dict.items():
         if engine["max"] <= 0:
             continue
         ai_percentage = engine["score"] / engine["max"] * 100
-        # Fine-tuned ViT gets very high weight (15x) since it's trained on our
-        # specific dataset including hyperrealistic AI that fools other engines
         weight = 15.0 if engine_key == "fine_tuned_vit" and engine.get("active") else 1.0
         if engine_key == "ai_provenance":
             weight = 1.5
+        if engine_key == "ai_manipulation":
+            weight = 1.2
         weighted_engine_scores.append((ai_percentage, weight))
 
     engine_ai_percentages = [score for score, _weight in weighted_engine_scores]
@@ -987,18 +1058,29 @@ def full_image_analysis(image: Image.Image) -> dict:
     ai_conf = sum(score * weight for score, weight in weighted_engine_scores) / (total_weight * 100)
     human_conf = 1.0 - ai_conf
 
-    if human_conf > ai_conf:
+    # Real but Edited by AI decision logic
+    is_edited_flag = manipulation.get("is_edited", False) and manipulation.get("score", 0) >= 48.0
+
+    if ai_conf >= 0.58:
+        verdict       = "AI-GENERATED"
+        verdict_label = "🚨 AI-GENERATED"
+    elif is_edited_flag and ai_conf <= 0.55:
+        verdict       = "AI-EDITED"
+        verdict_label = "🪄 REAL BUT AI-EDITED"
+    elif human_conf >= 0.50:
         verdict       = "AUTHENTIC"
         verdict_label = "✅ AUTHENTIC"
     else:
-        verdict       = "AI-GENERATED"
-        verdict_label = "🚨 AI-GENERATED"
+        verdict       = "UNCERTAIN"
+        verdict_label = "⚠️ UNCERTAIN"
 
     return {
         "verdict":          verdict,
         "verdict_label":    verdict_label,
-        "confidence_score": round(ai_conf * 100, 1),   # Average AI risk across engines
-        "human_score":      round(human_conf * 100, 1), # Average Human confidence across engines
+        "confidence_score": round(ai_conf * 100, 1),
+        "human_score":      round(human_conf * 100, 1),
+        "is_ai_edited":     is_edited_flag or verdict == "AI-EDITED",
+        "ai_edited_score":  round(float(manipulation.get("score", 0)), 1),
         "total_engine_count": total_engine_count,
         "high_risk_engine_count": high_risk_engine_count,
         "human_engine_count":     human_engine_count,

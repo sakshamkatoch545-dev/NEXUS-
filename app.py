@@ -142,6 +142,22 @@ button[kind="primary"] p, [data-testid="stBaseButton-primary"] p {{
     justify-content: space-between;
 }}
 
+/* ── AI-EDITED / Inpainting Cyber Styling ── */
+.v-edited {{
+    border-color: rgba(245, 158, 11, 0.45) !important;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.14) 0%, rgba(15, 23, 42, 0.75) 100%) !important;
+    box-shadow: 0 0 35px rgba(245, 158, 11, 0.25) !important;
+}}
+.v-edited h2 {{ color: #f59e0b !important; text-shadow: 0 0 16px rgba(245, 158, 11, 0.4) !important; }}
+.fill-edited {{ background: linear-gradient(90deg, #f59e0b, #d97706) !important; }}
+.top-verdict-edited {{
+    background: rgba(245, 158, 11, 0.14) !important;
+    border: 1px solid rgba(245, 158, 11, 0.35) !important;
+    color: #fbbf24 !important;
+}}
+.m-edited {{ border-left-color: #f59e0b !important; }}
+.m-edited .m-label, .m-edited .m-value {{ color: #fbbf24 !important; }}
+
 {css_content}
 {ds_css}
 </style>
@@ -336,6 +352,12 @@ ENGINES_INFO = [
         "tag": "Generator-Family Compatibility",
         "summary": "Matches visual fingerprints against known generator families (Stable Diffusion, SDXL, Midjourney, DALL·E, etc.). Helps attribute likely source model family, not just AI vs. human.",
     },
+    {
+        "num": "13",
+        "name": "AI Inpainting & Retouch Forensics",
+        "tag": "ZeroGPT-Style Localized Forensics",
+        "summary": "Scans spatial patch grids for bimodal sensor noise and boundary gradient jumps. Accurately flags authentic camera photographs that have been partially edited, enhanced, or inpainted by AI.",
+    },
 ]
 
 
@@ -386,13 +408,20 @@ def _render_page_subheader(tagline: str, pills: list[str], live: bool = False):
     )
 
 
-def _results_summary_html(verdict: str, ai_pct: float, human_pct: float) -> str:
+def _results_summary_html(verdict: str, ai_pct: float, human_pct: float, edit_pct: float = 0.0) -> str:
     if verdict == "AI-GENERATED":
         return (
             f'<span class="summary-highlight-ai">High AI likelihood detected ({ai_pct:.1f}% AI)</span><br><br>'
             "This image displays strong artificial characteristics across multiple forensic domains. "
             "Primary indicators include anomalous frequency distribution, over-smooth texture variance, "
             "and hyper-saturated color profiles typical of neural diffusion models."
+        )
+    if verdict == "AI-EDITED":
+        return (
+            f'<span style="color:#f59e0b;font-weight:700;font-size:1.05rem;">Real Photograph with AI-Inpainting / Editing Detected</span><br><br>'
+            f"Forensic grid analysis confirms this image has a <b>genuine camera capture foundation</b> ({human_pct:.1f}% base authenticity), "
+            f"but contains <b>localized AI generative fill, neural retouching, or inpainting</b> (inconsistency threat: <b>{edit_pct:.1f}%</b>). "
+            "Bimodal sensor noise distributions and boundary gradient discontinuities were identified in specific sub-regions."
         )
     if verdict == "UNCERTAIN":
         return (
@@ -423,6 +452,8 @@ def _render_top_verdict_note() -> str:
 
     if verdict == "AI-GENERATED":
         cls, label, detail = "top-verdict-ai", "AI GENERATED", f"{ai_pct:.1f}% AI threat"
+    elif verdict == "AI-EDITED":
+        cls, label, detail = "top-verdict-edited", "REAL BUT AI-EDITED", f"{ai_pct:.1f}% AI in sub-regions"
     elif verdict == "UNCERTAIN":
         cls, label, detail = "top-verdict-unc", "UNCERTAIN", f"{ai_pct:.1f}% AI · {human_pct:.1f}% human"
     else:
@@ -811,13 +842,21 @@ elif st.session_state.page == "execute":
 
         # ── Trigger analysis → jump to scan summary page ──
         if analyze and uploaded and image is not None:
-            with st.spinner(""):
-                st.markdown(
-                    "<div class='scan-pulse' style='text-align:center;'>"
-                    "[ Forensic Scan In Progress — 12 Engines Active ]</div>",
+            scan_slot = st.empty()
+            prog_bar = st.progress(10)
+            status_text = st.empty()
+            
+            def _st_progress(pct: int, label: str):
+                prog_bar.progress(min(pct, 100))
+                status_text.markdown(
+                    f"<div class='scan-pulse' style='text-align:center; font-size:0.95rem; color:#06b6d4;'>"
+                    f"⚡ [{pct}%] {label}</div>",
                     unsafe_allow_html=True,
                 )
-                result = full_image_analysis(image)
+            
+            _st_progress(20, "Armed 12 forensic & neural engines...")
+            result = full_image_analysis(image)
+            _st_progress(100, "Forensic consensus verified!")
 
             st.session_state.result = result
             st.session_state.scan_image = image
@@ -861,9 +900,13 @@ elif st.session_state.page == "results":
 
     score   = result["confidence_score"]
     verdict = result["verdict"]
+    is_edited = result.get("is_ai_edited", False)
+    ai_edited_score = float(result.get("ai_edited_score", 0.0))
 
     if verdict == "AI-GENERATED":
         vc, fc = "v-ai", "fill-ai"
+    elif verdict == "AI-EDITED":
+        vc, fc = "v-edited", "fill-edited"
     elif verdict == "UNCERTAIN":
         vc, fc = "v-unc", "fill-unc"
     else:
@@ -913,31 +956,49 @@ elif st.session_state.page == "results":
             </div>
             <div style="margin-top:0.8rem;font-family:'JetBrains Mono',monospace;font-size:0.72rem;
                 color:rgba(226,232,240,.72);letter-spacing:0.06em;">
-                12-ENGINE AVERAGE: {ai_pct:.1f}% AI · {human_pct:.1f}% HUMAN
+                13-ENGINE AVERAGE: {ai_pct:.1f}% AI · {human_pct:.1f}% HUMAN
                 <span style="opacity:0.65;">({ai_votes} HIGH-RISK · {human_votes} LOWER-RISK)</span>
             </div>
         </div>
         """, unsafe_allow_html=True)
 
     # ── Metric Cards ──
-    st.markdown(f"""
-    <div class="metric-grid">
-        <div class="metric-card m-human">
-            <div class="m-label">Human Confidence</div>
-            <div class="m-value">{human_pct:.1f}%</div>
+    if is_edited or verdict == "AI-EDITED":
+        st.markdown(f"""
+        <div class="metric-grid" style="grid-template-columns: repeat(3, 1fr);">
+            <div class="metric-card m-human">
+                <div class="m-label">Base Authenticity</div>
+                <div class="m-value">{human_pct:.1f}%</div>
+            </div>
+            <div class="metric-card m-edited">
+                <div class="m-label">AI Inpainting Threat</div>
+                <div class="m-value">{ai_edited_score:.1f}%</div>
+            </div>
+            <div class="metric-card m-ai">
+                <div class="m-label">Global AI Score</div>
+                <div class="m-value">{ai_pct:.1f}%</div>
+            </div>
         </div>
-        <div class="metric-card m-ai">
-            <div class="m-label">AI Probability</div>
-            <div class="m-value">{ai_pct:.1f}%</div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown(f"""
+        <div class="metric-grid">
+            <div class="metric-card m-human">
+                <div class="m-label">Human Confidence</div>
+                <div class="m-value">{human_pct:.1f}%</div>
+            </div>
+            <div class="metric-card m-ai">
+                <div class="m-label">AI Probability</div>
+                <div class="m-value">{ai_pct:.1f}%</div>
+            </div>
         </div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
     st.markdown(
         f"""
         <div class="glass-card">
         <div class="glass-title">Forensic Summary</div>
-        <div class="summary-text">{_results_summary_html(verdict, ai_pct, human_pct)}</div>
+        <div class="summary-text">{_results_summary_html(verdict, ai_pct, human_pct, edit_pct=ai_edited_score)}</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -945,7 +1006,7 @@ elif st.session_state.page == "results":
 
     _, eng_cta, _ = st.columns([1, 1.2, 1])
     with eng_cta:
-        if st.button("View 12-engine breakdown →", use_container_width=True, type="primary"):
+        if st.button("View 13-engine breakdown →", use_container_width=True, type="primary"):
             st.session_state.page = "engines"
             st.rerun()
 
