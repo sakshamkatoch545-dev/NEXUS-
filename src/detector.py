@@ -1080,7 +1080,7 @@ def full_image_analysis(image: Image.Image) -> dict:
     human_conf = 1.0 - ai_conf
 
     # Real but Edited by AI decision logic
-    is_edited_flag = manipulation.get("is_edited", False) and manipulation.get("score", 0) >= 48.0
+    is_edited_flag = bool(manipulation.get("is_edited", False) or manipulation.get("score", 0) >= 38.0)
 
     if ai_conf >= 0.58:
         verdict       = "AI-GENERATED"

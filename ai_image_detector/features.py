@@ -393,6 +393,10 @@ def detect_local_ai_manipulation(
     total_patches = rows * cols
     anomaly_ratio = float(anomalous_patches / total_patches)
 
+    # Coefficient of variation across spatial grid
+    noise_cv = float(tile_noise_arr.std() / (tile_noise_arr.mean() + 1e-6))
+    lap_cv = float(tile_lap_arr.std() / (tile_lap_arr.mean() + 1e-6))
+
     # AR Filter & Virtual Accessory Boundary Detection:
     # 1. Digital sunglasses / CGI overlays create sharp, zero-noise edge discontinuities
     # 2. Beauty filters produce ultra-low noise variance in face tiles while hair/background retains sensor grain

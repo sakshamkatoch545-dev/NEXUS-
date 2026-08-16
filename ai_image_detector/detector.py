@@ -205,10 +205,10 @@ class AIImageDetector:
 
         if not self._trained:
             # Fallback heuristic mode when classifier weights are not trained yet
-            heuristic_ai_prob = 0.50
-            if is_edited_flag and manip_score > 50.0:
-                heuristic_ai_prob = 0.45
+            heuristic_ai_prob = 0.40
+            if is_edited_flag or manip_score >= 35.0 or manipulation.get("ar_overlay_score", 0) > 0 or manipulation.get("face_smoothing_score", 0) > 0:
                 verdict = "AI_EDITED"
+                is_edited_flag = True
             else:
                 verdict = "UNCERTAIN"
 
@@ -281,15 +281,13 @@ class AIImageDetector:
         if ai_prob >= v.ai_threshold:
             return "AI"
 
-        # 2. Base human photo, check if edited by AI
-        if ai_prob <= v.human_threshold:
-            if ai_edited_prob >= v.ai_edited_threshold and manip_score >= v.min_manipulation_score:
-                return "AI_EDITED"
-            return "HUMAN"
-
-        # 3. Borderline cases: if strong local inpainting/editing anomaly detected, flag AI_EDITED
-        if ai_edited_prob >= 0.60 and manip_score >= 45.0:
+        # 2. Check if real image has been edited / filtered by AI
+        if ai_edited_prob >= v.ai_edited_threshold or manip_score >= v.min_manipulation_score:
             return "AI_EDITED"
+
+        # 3. Base human photo
+        if ai_prob <= v.human_threshold:
+            return "HUMAN"
 
         return "UNCERTAIN"
 

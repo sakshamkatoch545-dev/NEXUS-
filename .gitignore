@@ -20,4 +20,11 @@ logs/
 *_train.log
 *_train.err.log
 .runtime_packages/
+data/train/
+data/validation/
+data/test/
+ai_image_detector/data/train/
+ai_image_detector/data/validation/
+ai_image_detector/data/test/
+!**/.gitkeep
 

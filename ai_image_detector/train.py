@@ -36,7 +36,10 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-import imagehash
+try:
+    import imagehash
+except ImportError:
+    imagehash = None
 import joblib
 import numpy as np
 from PIL import Image
@@ -132,7 +135,7 @@ def _extract_dataset_features(
         except UnsupportedImageError as exc:
             logger.warning("Skipping unreadable image %s: %s", s.path, exc)
             continue
-        fused, _ = detector.extract_features(prepared)
+        fused, _, _ = detector.extract_features(prepared)
         X.append(fused)
         y.append(s.label)
         groups.append(s.group)
