@@ -393,30 +393,51 @@ def detect_local_ai_manipulation(
     total_patches = rows * cols
     anomaly_ratio = float(anomalous_patches / total_patches)
 
-    # Coefficient of variation across spatial grid
-    noise_cv = float(tile_noise_arr.std() / (tile_noise_arr.mean() + 1e-6))
-    lap_cv = float(tile_lap_arr.std() / (tile_lap_arr.mean() + 1e-6))
+    # AR Filter & Virtual Accessory Boundary Detection:
+    # 1. Digital sunglasses / CGI overlays create sharp, zero-noise edge discontinuities
+    # 2. Beauty filters produce ultra-low noise variance in face tiles while hair/background retains sensor grain
+    face_smoothing_score = 0.0
+    ar_overlay_score = 0.0
+
+    # Check center tiles (face area) vs perimeter tiles (background/clothing)
+    center_indices = [5, 6, 9, 10]
+    perimeter_indices = [0, 1, 2, 3, 4, 7, 8, 11, 12, 13, 14, 15]
+
+    center_noise_mean = float(np.mean(tile_noise_arr[center_indices]))
+    perim_noise_mean = float(np.mean(tile_noise_arr[perimeter_indices])) + 1e-6
+    center_lap_mean = float(np.mean(tile_lap_arr[center_indices]))
+    perim_lap_mean = float(np.mean(tile_lap_arr[perimeter_indices])) + 1e-6
+
+    # If center is significantly smoother than perimeter (beauty filter) OR has extreme synthetic edges (AR sunglasses)
+    if center_noise_mean / perim_noise_mean < 0.65:
+        face_smoothing_score = 35.0
+    if center_lap_mean / perim_lap_mean > 2.2 or center_lap_mean / perim_lap_mean < 0.45:
+        ar_overlay_score = 30.0
 
     # Composite AI manipulation score [0.0 - 100.0]
     raw_manip_score = (
-        (noise_cv * 45.0) +
-        (lap_cv * 30.0) +
-        (anomaly_ratio * 100.0 * 0.40) +
-        (min(float(noise_z_scores.max()), 5.0) * 8.0)
+        (noise_cv * 38.0) +
+        (lap_cv * 26.0) +
+        (anomaly_ratio * 100.0 * 0.35) +
+        (min(float(noise_z_scores.max()), 5.0) * 6.0) +
+        face_smoothing_score +
+        ar_overlay_score
     )
     manipulation_score = float(np.clip(raw_manip_score, 0.0, 100.0))
 
-    # Sigmoidal probability of local AI edit / inpainting
-    ai_edited_prob = float(1.0 / (1.0 + np.exp(-(manipulation_score - 40.0) / 12.0)))
+    # Sigmoidal probability of local AI edit / inpainting / AR filter
+    ai_edited_prob = float(1.0 / (1.0 + np.exp(-(manipulation_score - 38.0) / 10.0)))
 
-    # Signals specific to local editing
+    # Signals specific to local editing / AR filters
     local_signals = []
-    if noise_cv > 0.45:
-        local_signals.append("bimodal / localized noise inconsistency across spatial grid")
-    if anomalous_patches >= 2:
-        local_signals.append(f"detected {anomalous_patches} outlier sub-regions with mismatched residual texture")
-    if lap_cv > 0.60:
-        local_signals.append("inconsistent localized edge-gradient sharpness (possible generative inpainting boundary)")
+    if ar_overlay_score > 0:
+        local_signals.append("Snapchat / Instagram AR filter or digital accessory overlay detected (virtual sunglasses/mask/stickers)")
+    if face_smoothing_score > 0:
+        local_signals.append("facial beauty smoothing / digital airbrush filter detected on authentic photo baseline")
+    if noise_cv > 0.40:
+        local_signals.append("bimodal noise distribution: organic sensor grain with synthetic facial smoothing")
+    if anomalous_patches >= 1:
+        local_signals.append(f"detected {anomalous_patches} localized outlier patch(es) with mismatched texture / inpainting boundary")
 
     return {
         "manipulation_score": round(manipulation_score, 2),
@@ -425,6 +446,8 @@ def detect_local_ai_manipulation(
         "total_patches": total_patches,
         "noise_cv": round(noise_cv, 4),
         "sharpness_cv": round(lap_cv, 4),
+        "face_smoothing_score": round(face_smoothing_score, 1),
+        "ar_overlay_score": round(ar_overlay_score, 1),
         "local_signals": local_signals,
     }
 

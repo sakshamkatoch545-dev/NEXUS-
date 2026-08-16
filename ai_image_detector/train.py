@@ -54,6 +54,7 @@ logger = logging.getLogger(__name__)
 
 LABEL_HUMAN = 0
 LABEL_AI = 1
+LABEL_AI_EDITED = 2
 
 
 @dataclass
@@ -77,7 +78,15 @@ def _infer_group(path: Path) -> str:
 
 def _collect_samples(split_dir: Path, cfg: AppConfig) -> list[Sample]:
     samples: list[Sample] = []
-    for label_name, label in (("real", LABEL_HUMAN), ("ai", LABEL_AI)):
+    folder_mapping = (
+        ("real", LABEL_HUMAN),
+        ("ai", LABEL_AI),
+        ("ai_edited", LABEL_AI_EDITED),
+        ("filtered", LABEL_AI_EDITED),
+        ("snapchat", LABEL_AI_EDITED),
+        ("instagram", LABEL_AI_EDITED),
+    )
+    for label_name, label in folder_mapping:
         folder = split_dir / label_name
         if not folder.exists():
             continue

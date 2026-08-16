@@ -877,8 +877,9 @@ def engine_fine_tuned_vit(image: Image.Image) -> dict:
 
 def engine_ai_manipulation_and_inpainting(image: Image.Image) -> dict:
     """
-    Scans for localized AI generative inpainting, neural retouching, and face enhancement
-    on otherwise authentic images (ZeroGPT / GPTZero style localized forensics).
+    Scans for localized AI generative inpainting, Snapchat/Instagram AR filters,
+    virtual accessories (e.g. 3D sunglasses), and beauty facial airbrushing
+    on otherwise authentic camera photographs.
     """
     try:
         from scipy.ndimage import laplace, median_filter, sobel
@@ -917,15 +918,35 @@ def engine_ai_manipulation_and_inpainting(image: Image.Image) -> dict:
         noise_cv = float(noise_arr.std() / (noise_arr.mean() + 1e-6))
         lap_cv = float(lap_arr.std() / (lap_arr.mean() + 1e-6))
 
-        raw_score = (noise_cv * 45.0) + (lap_cv * 30.0) + (anomalies * 15.0)
+        # AR Filter & Virtual Accessory Check (Center facial tiles vs background)
+        center_indices = [5, 6, 9, 10]
+        perim_indices = [0, 1, 2, 3, 4, 7, 8, 11, 12, 13, 14, 15]
+        center_noise = float(np.mean(noise_arr[center_indices])) if len(noise_arr) >= 16 else 0.0
+        perim_noise = float(np.mean(noise_arr[perim_indices])) + 1e-6 if len(noise_arr) >= 16 else 1.0
+        center_lap = float(np.mean(lap_arr[center_indices])) if len(lap_arr) >= 16 else 0.0
+        perim_lap = float(np.mean(lap_arr[perim_indices])) + 1e-6 if len(lap_arr) >= 16 else 1.0
+
+        face_smoothing = center_noise / perim_noise < 0.65
+        ar_sunglasses_overlay = (center_lap / perim_lap > 2.0) or (center_lap / perim_lap < 0.45)
+
+        raw_score = (
+            (noise_cv * 38.0) +
+            (lap_cv * 26.0) +
+            (anomalies * 14.0) +
+            (35.0 if face_smoothing else 0.0) +
+            (30.0 if ar_sunglasses_overlay else 0.0)
+        )
         score = float(np.clip(raw_score, 0.0, 100.0))
-        is_edited = bool(score >= 45.0 and anomalies >= 1)
+        is_edited = bool(score >= 42.0 or ar_sunglasses_overlay or face_smoothing)
 
         findings = []
-        if is_edited:
+        if ar_sunglasses_overlay:
+            findings.append("Detected Snapchat/Instagram AR filter or digital accessory overlay (e.g. virtual sunglasses/mask).")
+        if face_smoothing:
+            findings.append("Facial beauty airbrushing / skin smoothing filter detected on authentic camera capture.")
+        if anomalies >= 1:
             findings.append(f"Detected {anomalies} localized outlier patch(es) with mismatched noise/texture.")
-            findings.append("High spatial variance indicative of AI inpainting or generative retouching.")
-        else:
+        if not is_edited:
             findings.append("Uniform spatial sensor noise across all image tiles.")
 
         return {
