@@ -230,7 +230,7 @@ def _clear_scan_state(clear_upload: bool = False):
 
 
 def _render_engine_grid(result: dict):
-    """12-engine score cards from a completed scan."""
+    """13-engine score cards from a completed scan."""
     html_cards = []
     for idx, (_key, eng) in enumerate(result["engines"].items()):
         s = eng["score"]
@@ -271,7 +271,7 @@ def _render_engine_grid(result: dict):
     grid_html = (
         '<div class="section-heading">'
         '<span class="sh-icon">🔬</span>'
-        '<span class="sh-text">12-Engine Forensics</span>'
+        '<span class="sh-text">13-Engine Forensics</span>'
         '<span class="sh-line"></span>'
         '</div>'
         f'<div class="engine-grid">{"".join(html_cards)}</div>'
@@ -362,7 +362,7 @@ ENGINES_INFO = [
 
 
 def _render_engine_catalog():
-    """Clickable list of all 12 engines — tap any row for a short summary."""
+    """Clickable list of all 13 engines — tap any row for a short summary."""
     st.markdown(
         '<p class="engine-catalog-hint">Click any engine to see what it uses and how it helps detection.</p>',
         unsafe_allow_html=True,
@@ -589,8 +589,8 @@ def _go_execution(clear_upload: bool = True):
 def _render_execution_header():
     """Page header for the execution / upload screen."""
     _render_page_subheader(
-        "Upload image payload · run 12-engine scan",
-        ["System ready", "12 engines armed", "PNG · JPG · WEBP"],
+        "Upload image payload · run 13-engine scan",
+        ["System ready", "13 engines armed", "PNG · JPG · WEBP"],
         live=True,
     )
 
@@ -624,7 +624,7 @@ if st.session_state.page == "landing":
         <div class="liquid-hero-frame landing-page page-fade" style="text-align: center;">
             <div class="status-badge-wrap">
                 <span class="status-dot"></span>
-                <span class="status-text">12 FORENSIC ENGINES ONLINE</span>
+                <span class="status-text">13 FORENSIC ENGINES ONLINE</span>
             </div>
             <h1 class="landing-hero">NEXUS+ <span class="version-badge">v6.0</span></h1>
             <p class="landing-tagline"><b>Advanced AI Image Forensics</b></p>
@@ -637,7 +637,7 @@ if st.session_state.page == "landing":
     st.markdown("""
     <div class="landing-metrics-bar">
         <div class="l-metric-card">
-            <span class="lm-val">12</span>
+            <span class="lm-val">13</span>
             <span class="lm-lbl">Detection Engines</span>
         </div>
         <div class="l-metric-card">
@@ -658,7 +658,7 @@ if st.session_state.page == "landing":
     st.markdown("""
     <div class="landing-cta-box">
         <h3 class="cta-title">Ready for Forensic Inspection?</h3>
-        <p class="cta-desc">Upload any profile picture, media render, or suspect photo to generate a comprehensive 12-engine threat score breakdown.</p>
+        <p class="cta-desc">Upload any profile picture, media render, or suspect photo to generate a comprehensive 13-engine threat score breakdown.</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -681,9 +681,9 @@ if st.session_state.page == "landing":
             <div class="pillar-desc">Calculates 2D Fast Fourier Transforms (FFT) and multi-scale texture smoothness to detect high-frequency sensor noise loss.</div>
         </div>
         <div class="pillar-card">
-            <div class="pillar-icon">🖼️</div>
-            <div class="pillar-title">Compression & ELA</div>
-            <div class="pillar-desc">Re-compresses JPEG error levels (ELA) and analyzes border text/watermarks to expose generator artifacts and tampered regions.</div>
+            <div class="pillar-icon">🪄</div>
+            <div class="pillar-title">Compression & Inpainting</div>
+            <div class="pillar-desc">Re-compresses JPEG error levels (ELA) and analyzes spatial noise/gradient boundaries to detect localized AI inpainting and generative edits.</div>
         </div>
         <div class="pillar-card">
             <div class="pillar-icon">🧬</div>
@@ -699,7 +699,7 @@ if st.session_state.page == "landing":
     )
     st.markdown(f"""
     <div class="glass-card" style="text-align:center; margin-top: 1.5rem;">
-        <div class="glass-title" style="justify-content:center;">🛡️ 12 Active Forensic Inspection Modules</div>
+        <div class="glass-title" style="justify-content:center;">🛡️ 13 Active Forensic Inspection Modules</div>
         <div class="showcase-chip-grid">{chips}</div>
     </div>
     """, unsafe_allow_html=True)
@@ -716,7 +716,7 @@ elif st.session_state.page == "engines":
     )
     _render_page_subheader(
         "Forensic modules in every scan",
-        ["12 modules", "Neural · Spectral · Provenance"],
+        ["13 modules", "Neural · Spectral · Inpainting · Provenance"],
     )
 
     if _has_live_scan():
@@ -835,7 +835,7 @@ elif st.session_state.page == "execute":
         )
         st.markdown(f"""
         <div class="glass-card" style="text-align:center;">
-            <div class="glass-title" style="justify-content:center;">12 Detection Engines Ready</div>
+            <div class="glass-title" style="justify-content:center;">13 Detection Engines Ready</div>
             <div class="engine-chip-strip">{chips}</div>
         </div>
         """, unsafe_allow_html=True)
@@ -854,7 +854,7 @@ elif st.session_state.page == "execute":
                     unsafe_allow_html=True,
                 )
             
-            _st_progress(20, "Armed 12 forensic & neural engines...")
+            _st_progress(20, "Armed 13 forensic & neural engines (including AI Inpainting)...")
             result = full_image_analysis(image)
             _st_progress(100, "Forensic consensus verified!")
 
@@ -1017,7 +1017,7 @@ elif st.session_state.page == "results":
 
 st.markdown(
     '<div class="footer-text">NEXUS+ <span>·</span> AI Detector v6.0 <span>·</span> '
-    '12-Engine Multi-Domain Forensics <span>·</span> '
-    'HuggingFace + OpenAI CLIP + FFT</div>',
+    '13-Engine Multi-Domain Forensics <span>·</span> '
+    'HuggingFace + OpenAI CLIP + FFT + Inpainting Forensics</div>',
     unsafe_allow_html=True,
 )
