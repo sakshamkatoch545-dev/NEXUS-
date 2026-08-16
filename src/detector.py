@@ -918,26 +918,28 @@ def engine_ai_manipulation_and_inpainting(image: Image.Image) -> dict:
         noise_cv = float(noise_arr.std() / (noise_arr.mean() + 1e-6))
         lap_cv = float(lap_arr.std() / (lap_arr.mean() + 1e-6))
 
-        # AR Filter & Virtual Accessory Check (Center facial tiles vs background)
-        center_indices = [5, 6, 9, 10]
-        perim_indices = [0, 1, 2, 3, 4, 7, 8, 11, 12, 13, 14, 15]
-        center_noise = float(np.mean(noise_arr[center_indices])) if len(noise_arr) >= 16 else 0.0
-        perim_noise = float(np.mean(noise_arr[perim_indices])) + 1e-6 if len(noise_arr) >= 16 else 1.0
-        center_lap = float(np.mean(lap_arr[center_indices])) if len(lap_arr) >= 16 else 0.0
-        perim_lap = float(np.mean(lap_arr[perim_indices])) + 1e-6 if len(lap_arr) >= 16 else 1.0
+        # 1. Orientation-Independent Face Smoothing Disparity (Smoothest vs Grainiest Quartiles)
+        sorted_noise = np.sort(noise_arr)
+        smooth_tier = float(np.mean(sorted_noise[:4])) if len(sorted_noise) >= 4 else float(sorted_noise[0])
+        grain_tier = float(np.mean(sorted_noise[-4:])) if len(sorted_noise) >= 4 else float(sorted_noise[-1])
+        smoothing_disparity = smooth_tier / (grain_tier + 1e-6)
+        face_smoothing = bool(smoothing_disparity < 0.48 and grain_tier > 0.005)
 
-        face_smoothing = center_noise / perim_noise < 0.65
-        ar_sunglasses_overlay = (center_lap / perim_lap > 2.0) or (center_lap / perim_lap < 0.45)
+        # 2. Orientation-Independent AR Accessory & Sunglasses Overlay Disparity (CGI sharp edges on zero-noise skin)
+        lap_to_noise = lap_arr / (noise_arr + 1e-6)
+        med_lap_noise = float(np.median(lap_to_noise)) + 1e-6
+        ar_overlay_ratio = float(np.max(lap_to_noise) / med_lap_noise)
+        ar_sunglasses_overlay = bool(ar_overlay_ratio >= 2.6 or np.max(lap_arr) / (np.median(lap_arr) + 1e-6) >= 2.8)
 
         raw_score = (
-            (noise_cv * 38.0) +
-            (lap_cv * 26.0) +
-            (anomalies * 14.0) +
-            (35.0 if face_smoothing else 0.0) +
-            (30.0 if ar_sunglasses_overlay else 0.0)
+            (noise_cv * 40.0) +
+            (lap_cv * 28.0) +
+            (anomalies * 12.0) +
+            (38.0 if face_smoothing else 0.0) +
+            (36.0 if ar_sunglasses_overlay else 0.0)
         )
         score = float(np.clip(raw_score, 0.0, 100.0))
-        is_edited = bool(score >= 42.0 or ar_sunglasses_overlay or face_smoothing)
+        is_edited = bool(score >= 36.0 or ar_sunglasses_overlay or face_smoothing)
 
         findings = []
         if ar_sunglasses_overlay:

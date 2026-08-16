@@ -397,31 +397,25 @@ def detect_local_ai_manipulation(
     noise_cv = float(tile_noise_arr.std() / (tile_noise_arr.mean() + 1e-6))
     lap_cv = float(tile_lap_arr.std() / (tile_lap_arr.mean() + 1e-6))
 
-    # AR Filter & Virtual Accessory Boundary Detection:
-    # 1. Digital sunglasses / CGI overlays create sharp, zero-noise edge discontinuities
-    # 2. Beauty filters produce ultra-low noise variance in face tiles while hair/background retains sensor grain
-    face_smoothing_score = 0.0
-    ar_overlay_score = 0.0
+    # 1. Orientation-Independent Face Smoothing Disparity (Smoothest vs Grainiest Quartiles)
+    sorted_noise = np.sort(tile_noise_arr)
+    smooth_tier = float(np.mean(sorted_noise[:4])) if len(sorted_noise) >= 4 else float(sorted_noise[0])
+    grain_tier = float(np.mean(sorted_noise[-4:])) if len(sorted_noise) >= 4 else float(sorted_noise[-1])
+    smoothing_disparity = smooth_tier / (grain_tier + 1e-6)
+    face_smoothing = bool(smoothing_disparity < 0.48 and grain_tier > 0.005)
+    face_smoothing_score = 38.0 if face_smoothing else 0.0
 
-    # Check center tiles (face area) vs perimeter tiles (background/clothing)
-    center_indices = [5, 6, 9, 10]
-    perimeter_indices = [0, 1, 2, 3, 4, 7, 8, 11, 12, 13, 14, 15]
-
-    center_noise_mean = float(np.mean(tile_noise_arr[center_indices]))
-    perim_noise_mean = float(np.mean(tile_noise_arr[perimeter_indices])) + 1e-6
-    center_lap_mean = float(np.mean(tile_lap_arr[center_indices]))
-    perim_lap_mean = float(np.mean(tile_lap_arr[perimeter_indices])) + 1e-6
-
-    # If center is significantly smoother than perimeter (beauty filter) OR has extreme synthetic edges (AR sunglasses)
-    if center_noise_mean / perim_noise_mean < 0.65:
-        face_smoothing_score = 35.0
-    if center_lap_mean / perim_lap_mean > 2.2 or center_lap_mean / perim_lap_mean < 0.45:
-        ar_overlay_score = 30.0
+    # 2. Orientation-Independent AR Accessory & Sunglasses Overlay Disparity (CGI sharp edges on zero-noise skin)
+    lap_to_noise = tile_lap_arr / (tile_noise_arr + 1e-6)
+    med_lap_noise = float(np.median(lap_to_noise)) + 1e-6
+    ar_overlay_ratio = float(np.max(lap_to_noise) / med_lap_noise)
+    ar_sunglasses_overlay = bool(ar_overlay_ratio >= 2.6 or np.max(tile_lap_arr) / (np.median(tile_lap_arr) + 1e-6) >= 2.8)
+    ar_overlay_score = 36.0 if ar_sunglasses_overlay else 0.0
 
     # Composite AI manipulation score [0.0 - 100.0]
     raw_manip_score = (
-        (noise_cv * 38.0) +
-        (lap_cv * 26.0) +
+        (noise_cv * 40.0) +
+        (lap_cv * 28.0) +
         (anomaly_ratio * 100.0 * 0.35) +
         (min(float(noise_z_scores.max()), 5.0) * 6.0) +
         face_smoothing_score +
@@ -430,7 +424,7 @@ def detect_local_ai_manipulation(
     manipulation_score = float(np.clip(raw_manip_score, 0.0, 100.0))
 
     # Sigmoidal probability of local AI edit / inpainting / AR filter
-    ai_edited_prob = float(1.0 / (1.0 + np.exp(-(manipulation_score - 38.0) / 10.0)))
+    ai_edited_prob = float(1.0 / (1.0 + np.exp(-(manipulation_score - 36.0) / 10.0)))
 
     # Signals specific to local editing / AR filters
     local_signals = []
