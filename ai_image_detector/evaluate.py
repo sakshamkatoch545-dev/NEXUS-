@@ -127,7 +127,7 @@ def evaluate_compressed_and_screenshots(detector: AIImageDetector, cfg: AppConfi
                 transformed = apply_transform_for_robustness_test(prepared, transform_name, cfg.preprocess)
             except UnsupportedImageError:
                 continue
-            fused, _ = detector.extract_features(_wrap_as_prepared(prepared, transformed))
+            fused, _, _ = detector.extract_features(_wrap_as_prepared(prepared, transformed))
             X = fused.reshape(1, -1)
             if detector._feature_scaler is not None:
                 X = detector._feature_scaler.transform(X)
@@ -165,7 +165,7 @@ def evaluate_robustness(detector: AIImageDetector, cfg: AppConfig, split_dir: Pa
             prepared = prepare_image(s.path, cfg.preprocess)
         except UnsupportedImageError:
             continue
-        fused_orig, _ = detector.extract_features(prepared)
+        fused_orig, _, _ = detector.extract_features(prepared)
         X_orig = fused_orig.reshape(1, -1)
         if detector._feature_scaler is not None:
             X_orig = detector._feature_scaler.transform(X_orig)
@@ -178,7 +178,7 @@ def evaluate_robustness(detector: AIImageDetector, cfg: AppConfig, split_dir: Pa
         for transform_name in ROBUSTNESS_TRANSFORMS:
             transformed = apply_transform_for_robustness_test(prepared, transform_name, cfg.preprocess)
             wrapped = _wrap_as_prepared(prepared, transformed)
-            fused_t, _ = detector.extract_features(wrapped)
+            fused_t, _, _ = detector.extract_features(wrapped)
             X_t = fused_t.reshape(1, -1)
             if detector._feature_scaler is not None:
                 X_t = detector._feature_scaler.transform(X_t)

@@ -273,8 +273,8 @@ class AIImageDetector:
     def _verdict_from_probability(
         self,
         ai_prob: float,
-        ai_edited_prob: float,
-        manip_score: float,
+        ai_edited_prob: float = 0.0,
+        manip_score: float = 0.0,
     ) -> str:
         v = self.config.verdict
         # 1. Clear fully-AI image

@@ -1,0 +1,86 @@
+{
+  "split": "test",
+  "overall_metrics": {
+    "n_samples": 92,
+    "accuracy": 0.9565217391304348,
+    "precision": 0.9069767441860465,
+    "recall": 1.0,
+    "f1": 0.9512195121951219,
+    "false_positive_rate": 0.07547169811320754,
+    "false_negative_rate": 0.0,
+    "confusion_matrix": {
+      "tn": 49,
+      "fp": 4,
+      "fn": 0,
+      "tp": 39
+    },
+    "roc_auc": 0.9990324141267538
+  },
+  "compressed_and_screenshot_metrics": {
+    "jpeg_low": {
+      "n_samples": 92,
+      "accuracy": 0.9021739130434783,
+      "precision": 0.8409090909090909,
+      "recall": 0.9487179487179487,
+      "f1": 0.891566265060241,
+      "false_positive_rate": 0.1320754716981132,
+      "false_negative_rate": 0.05128205128205128,
+      "confusion_matrix": {
+        "tn": 46,
+        "fp": 7,
+        "fn": 2,
+        "tp": 37
+      },
+      "roc_auc": 0.9472665699080793
+    },
+    "screenshot_like": {
+      "n_samples": 92,
+      "accuracy": 0.9565217391304348,
+      "precision": 0.9069767441860465,
+      "recall": 1.0,
+      "f1": 0.9512195121951219,
+      "false_positive_rate": 0.07547169811320754,
+      "false_negative_rate": 0.0,
+      "confusion_matrix": {
+        "tn": 49,
+        "fp": 4,
+        "fn": 0,
+        "tp": 39
+      },
+      "roc_auc": 0.9975810353168845
+    }
+  },
+  "robustness_to_benign_transforms": {
+    "jpeg_low": {
+      "mean_abs_probability_change": 0.0031424488684967736,
+      "max_abs_probability_change": 0.022727272727272728,
+      "verdict_flip_rate": 0.0
+    },
+    "resize_down_up": {
+      "mean_abs_probability_change": 0.013190295629073248,
+      "max_abs_probability_change": 0.2566408839285157,
+      "verdict_flip_rate": 0.05
+    },
+    "crop": {
+      "mean_abs_probability_change": 0.0018783536822458997,
+      "max_abs_probability_change": 0.028742514970059863,
+      "verdict_flip_rate": 0.0
+    },
+    "brightness": {
+      "mean_abs_probability_change": 0.006270332063146433,
+      "max_abs_probability_change": 0.08326277315498865,
+      "verdict_flip_rate": 0.05
+    },
+    "blur": {
+      "mean_abs_probability_change": 0.007836567125489278,
+      "max_abs_probability_change": 0.14660808253622615,
+      "verdict_flip_rate": 0.05
+    },
+    "screenshot_like": {
+      "mean_abs_probability_change": 0.010478487181481196,
+      "max_abs_probability_change": 0.2223763382326257,
+      "verdict_flip_rate": 0.05
+    },
+    "n_base_images_evaluated": 40
+  }
+}
