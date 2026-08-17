@@ -82,10 +82,11 @@ The **right column** transforms to show your full forensic report:
   <em>The verdict panel showing a high-confidence AI-Generated result with 87.3% AI probability</em>
 </p>
 
-The **verdict box** displays one of three outcomes:
+The **verdict box** displays one of four outcomes:
 | Verdict | Meaning | Color |
 |---|---|---|
 | 🚨 **AI-GENERATED** | Strong AI signature detected across multiple engines | 🔴 Red |
+| 🪄 **LIKELY REAL BUT EDITED BY AI** | Genuine camera foundation with localized AI inpainting, neural edits, or filters | 🟠 Amber |
 | ⚠️ **UNCERTAIN** | Mixed signals — borderline case requiring review | 🟡 Yellow |
 | ✅ **AUTHENTIC** | Natural camera characteristics confirmed | 🟢 Green |
 

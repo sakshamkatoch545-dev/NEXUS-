@@ -1089,7 +1089,7 @@ def full_image_analysis(image: Image.Image) -> dict:
         verdict_label = "🚨 AI-GENERATED"
     elif is_edited_flag and ai_conf <= 0.55:
         verdict       = "AI-EDITED"
-        verdict_label = "🪄 REAL BUT AI-EDITED"
+        verdict_label = "🪄 LIKELY REAL BUT EDITED BY AI"
     elif human_conf >= 0.50:
         verdict       = "AUTHENTIC"
         verdict_label = "✅ AUTHENTIC"

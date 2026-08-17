@@ -418,9 +418,9 @@ def _results_summary_html(verdict: str, ai_pct: float, human_pct: float, edit_pc
         )
     if verdict == "AI-EDITED":
         return (
-            f'<span style="color:#f59e0b;font-weight:700;font-size:1.05rem;">Real Photograph with AI-Inpainting / Editing Detected</span><br><br>'
+            f'<span style="color:#f59e0b;font-weight:700;font-size:1.05rem;">Likely Real Photograph with AI Edits / Retouching Detected</span><br><br>'
             f"Forensic grid analysis confirms this image has a <b>genuine camera capture foundation</b> ({human_pct:.1f}% base authenticity), "
-            f"but contains <b>localized AI generative fill, neural retouching, or inpainting</b> (inconsistency threat: <b>{edit_pct:.1f}%</b>). "
+            f"but contains <b>localized AI generative fill, neural retouching, or AI filtering</b> (inconsistency threat: <b>{edit_pct:.1f}%</b>). "
             "Bimodal sensor noise distributions and boundary gradient discontinuities were identified in specific sub-regions."
         )
     if verdict == "UNCERTAIN":
@@ -453,7 +453,7 @@ def _render_top_verdict_note() -> str:
     if verdict == "AI-GENERATED":
         cls, label, detail = "top-verdict-ai", "AI GENERATED", f"{ai_pct:.1f}% AI threat"
     elif verdict == "AI-EDITED":
-        cls, label, detail = "top-verdict-edited", "REAL BUT AI-EDITED", f"{ai_pct:.1f}% AI in sub-regions"
+        cls, label, detail = "top-verdict-edited", "LIKELY REAL BUT EDITED BY AI", f"{ai_pct:.1f}% AI in sub-regions"
     elif verdict == "UNCERTAIN":
         cls, label, detail = "top-verdict-unc", "UNCERTAIN", f"{ai_pct:.1f}% AI · {human_pct:.1f}% human"
     else:
