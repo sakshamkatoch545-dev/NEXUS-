@@ -797,17 +797,26 @@ def engine_watermark_detection(image: Image.Image) -> dict:
     text_like_regions = 0
     for region in regions:
         gray = cv2.cvtColor(region, cv2.COLOR_RGB2GRAY)
-        edges = cv2.Canny(gray, 80, 180)
+        edges = cv2.Canny(gray, 100, 200)
         contours, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-        components = 0
+        
+        char_boxes = []
         region_area = region.shape[0] * region.shape[1]
         for contour in contours:
-            x, y, contour_width, contour_height = cv2.boundingRect(contour)
-            area = contour_width * contour_height
-            if 8 <= contour_width <= region.shape[1] * 0.9 and 3 <= contour_height <= region.shape[0] * 0.35 and 20 <= area <= region_area * 0.2:
-                components += 1
-        if components >= 8:
-            text_like_regions += 1
+            x, y, w, h = cv2.boundingRect(contour)
+            area = w * h
+            aspect = w / (h + 1e-5)
+            if 6 <= w <= region.shape[1] * 0.4 and 8 <= h <= region.shape[0] * 0.35 and 40 <= area <= region_area * 0.1:
+                if 0.2 <= aspect <= 3.0:
+                    char_boxes.append((x, y, w, h))
+                    
+        if len(char_boxes) >= 5:
+            ys = [b[1] for b in char_boxes]
+            hs = [b[3] for b in char_boxes]
+            y_std = float(np.std(ys))
+            h_cv = float(np.std(hs) / (np.mean(hs) + 1e-5))
+            if y_std < region.shape[0] * 0.12 and h_cv < 0.45:
+                text_like_regions += 1
 
     detected = text_like_regions >= 1
     return {
@@ -877,12 +886,12 @@ def engine_fine_tuned_vit(image: Image.Image) -> dict:
 
 def engine_ai_manipulation_and_inpainting(image: Image.Image) -> dict:
     """
-    Scans for localized AI generative inpainting, Snapchat/Instagram AR filters,
-    virtual accessories (e.g. 3D sunglasses), and beauty facial airbrushing
-    on otherwise authentic camera photographs.
+    Scans for localized AI generative inpainting, object removal, and retouching
+    on otherwise authentic camera photographs using robust wavelet residual disparity.
     """
     try:
-        from scipy.ndimage import laplace, median_filter, sobel
+        import pywt
+        from scipy.ndimage import laplace
         import scipy.stats as stats
         
         rgb = np.asarray(image.convert("RGB")).astype(np.float32) / 255.0
@@ -890,66 +899,49 @@ def engine_ai_manipulation_and_inpainting(image: Image.Image) -> dict:
         r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
         gray = 0.299 * r + 0.587 * g + 0.114 * b
 
-        denoised = median_filter(gray, size=3)
-        residual = gray - denoised
-
-        # 4x4 spatial grid
-        rows, cols = 4, 4
-        tile_h, tile_w = max(1, h // rows), max(1, w // cols)
+        grid_r, grid_c = 6, 6
+        th, tw = max(4, h // grid_r), max(4, w // grid_c)
         
-        noise_stds = []
-        lap_vars = []
-        for r_idx in range(rows):
-            for c_idx in range(cols):
-                t_gray = gray[r_idx*tile_h:(r_idx+1)*tile_h, c_idx*tile_w:(c_idx+1)*tile_w]
-                t_res = residual[r_idx*tile_h:(r_idx+1)*tile_h, c_idx*tile_w:(c_idx+1)*tile_w]
-                if t_res.size > 0:
-                    noise_stds.append(float(t_res.std()))
-                    lap_vars.append(float(laplace(t_gray).var()))
-
-        noise_arr = np.array(noise_stds, dtype=np.float32)
-        lap_arr = np.array(lap_vars, dtype=np.float32)
-
-        med_noise = float(np.median(noise_arr))
-        iqr_noise = float(stats.iqr(noise_arr)) + 1e-6
-        noise_z = np.abs(noise_arr - med_noise) / iqr_noise
-
-        anomalies = int(np.sum(noise_z > 2.5))
-        noise_cv = float(noise_arr.std() / (noise_arr.mean() + 1e-6))
-        lap_cv = float(lap_arr.std() / (lap_arr.mean() + 1e-6))
-
-        # 1. Orientation-Independent Face Smoothing Disparity (Smoothest vs Grainiest Quartiles)
-        sorted_noise = np.sort(noise_arr)
-        smooth_tier = float(np.mean(sorted_noise[:4])) if len(sorted_noise) >= 4 else float(sorted_noise[0])
-        grain_tier = float(np.mean(sorted_noise[-4:])) if len(sorted_noise) >= 4 else float(sorted_noise[-1])
-        smoothing_disparity = smooth_tier / (grain_tier + 1e-6)
-        face_smoothing = bool(smoothing_disparity < 0.48 and grain_tier > 0.005)
-
-        # 2. Orientation-Independent AR Accessory & Sunglasses Overlay Disparity (CGI sharp edges on zero-noise skin)
-        lap_to_noise = lap_arr / (noise_arr + 1e-6)
-        med_lap_noise = float(np.median(lap_to_noise)) + 1e-6
-        ar_overlay_ratio = float(np.max(lap_to_noise) / med_lap_noise)
-        ar_sunglasses_overlay = bool(ar_overlay_ratio >= 2.6 or np.max(lap_arr) / (np.median(lap_arr) + 1e-6) >= 2.8)
-
-        raw_score = (
-            (noise_cv * 40.0) +
-            (lap_cv * 28.0) +
-            (anomalies * 12.0) +
-            (38.0 if face_smoothing else 0.0) +
-            (36.0 if ar_sunglasses_overlay else 0.0)
-        )
-        score = float(np.clip(raw_score, 0.0, 100.0))
-        is_edited = bool(score >= 36.0 or ar_sunglasses_overlay or face_smoothing)
+        tile_noise = []
+        tile_ratio = []
+        
+        for r_idx in range(grid_r):
+            for c_idx in range(grid_c):
+                t = gray[r_idx*th:(r_idx+1)*th, c_idx*tw:(c_idx+1)*tw]
+                coeffs = pywt.dwt2(t, 'db4')
+                _, (_, _, hh) = coeffs
+                sigma = float(np.median(np.abs(hh)) / 0.6745)
+                l_var = float(laplace(t).var())
+                
+                tile_noise.append(sigma)
+                tile_ratio.append(sigma / (np.sqrt(l_var) + 1e-4))
+                
+        n_arr = np.array(tile_noise, dtype=np.float32)
+        r_arr = np.array(tile_ratio, dtype=np.float32)
+        
+        n_med = float(np.median(n_arr))
+        n_iqr = float(stats.iqr(n_arr)) + 1e-5
+        n_z = np.abs(n_arr - n_med) / n_iqr
+        
+        r_med = float(np.median(r_arr))
+        r_iqr = float(stats.iqr(r_arr)) + 1e-5
+        r_z = np.abs(r_arr - r_med) / r_iqr
+        
+        anomalies = int(np.sum((n_z > 3.5) & (r_z > 3.0)))
+        max_nz = float(np.max(n_z))
+        max_rz = float(np.max(r_z))
+        
+        is_edited = bool(anomalies >= 1 and max_nz >= 4.0 and max_rz >= 3.2)
+        if is_edited:
+            score = float(np.clip(max_nz * 12.0, 65.0, 100.0))
+        else:
+            score = float(np.clip(min(max_rz, 2.5) * 6.0, 0.0, 20.0))
 
         findings = []
-        if ar_sunglasses_overlay:
-            findings.append("Detected Snapchat/Instagram AR filter or digital accessory overlay (e.g. virtual sunglasses/mask).")
-        if face_smoothing:
-            findings.append("Facial beauty airbrushing / skin smoothing filter detected on authentic camera capture.")
-        if anomalies >= 1:
-            findings.append(f"Detected {anomalies} localized outlier patch(es) with mismatched noise/texture.")
-        if not is_edited:
-            findings.append("Uniform spatial sensor noise across all image tiles.")
+        if is_edited:
+            findings.append(f"Detected localized AI inpainting / object removal ({anomalies} anomaly patch(es), noise disparity z={max_nz:.2f}).")
+        else:
+            findings.append("Uniform sensor noise distribution across all image tiles.")
 
         return {
             "score": round(score, 1),
@@ -958,6 +950,11 @@ def engine_ai_manipulation_and_inpainting(image: Image.Image) -> dict:
             "is_edited": is_edited,
             "anomalies": anomalies,
             "explanation": "<br>".join(f"• {f}" for f in findings)
+        }
+    except Exception as exc:
+        return {
+            "score": 0, "max": 100, "raw": 0.0, "is_edited": False, "anomalies": 0,
+            "explanation": f"Inpainting scan skipped: {exc}"
         }
     except Exception as exc:
         return {
@@ -1082,7 +1079,7 @@ def full_image_analysis(image: Image.Image) -> dict:
     human_conf = 1.0 - ai_conf
 
     # Real but Edited by AI decision logic
-    is_edited_flag = bool(manipulation.get("is_edited", False) or manipulation.get("score", 0) >= 38.0)
+    is_edited_flag = bool(manipulation.get("is_edited", False))
 
     if ai_conf >= 0.58:
         verdict       = "AI-GENERATED"

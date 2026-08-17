@@ -331,111 +331,71 @@ def detect_local_ai_manipulation(
 
     Key Forensic Principles:
     1. Uniform Sensor Noise vs Localized Denoising: Natural camera sensors deposit
-       uniform PRNU / sensor noise. Inpainted AI patches or AI generative fill
-       produce smoothed, bimodal noise distributions.
-    2. Local Gradient & Laplacian Discontinuity: Inpainted object boundaries and
-       spliced AI elements have mismatched edge/sharpness profiles.
-    3. Error Level & High-Frequency Inconsistency: Compression and frequency
-       profiles deviate sharply in manipulated sub-regions compared to untouched areas.
+    Extract localized inpainting, editing, and manipulation forensic features.
+    Uses robust multi-tile wavelet noise estimation and normalized noise-to-texture ratios.
     """
-    from scipy.ndimage import laplace, median_filter, sobel
+    import pywt
+    from scipy.ndimage import laplace
+    import scipy.stats as stats
 
-    h, w, _ = rgb.shape
-    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    h, w, _ = image_np.shape
+    r = image_np[..., 0].astype(np.float32)
+    g = image_np[..., 1].astype(np.float32)
+    b = image_np[..., 2].astype(np.float32)
     gray = 0.299 * r + 0.587 * g + 0.114 * b
 
-    # Full-frame baseline noise residual
-    denoised_full = median_filter(gray, size=3)
-    residual_full = gray - denoised_full
-
     rows, cols = grid_size
-    tile_h, tile_w = h // rows, w // cols
+    tile_h, tile_w = max(4, h // rows), max(4, w // cols)
 
-    tile_noise_stds = []
-    tile_lap_vars = []
-    tile_grad_means = []
-    tile_entropies = []
+    tile_noise = []
+    tile_ratio = []
 
     for r_idx in range(rows):
         for c_idx in range(cols):
             y0, y1 = r_idx * tile_h, (r_idx + 1) * tile_h
             x0, x1 = c_idx * tile_w, (c_idx + 1) * tile_w
-
             tile_gray = gray[y0:y1, x0:x1]
-            tile_res = residual_full[y0:y1, x0:x1]
 
-            # Patch noise & sharpness metrics
-            tile_noise_stds.append(float(tile_res.std()))
-            tile_lap_vars.append(float(laplace(tile_gray).var()))
-            
-            # Patch gradient
-            gx = sobel(tile_gray, axis=1)
-            gy = sobel(tile_gray, axis=0)
-            tile_grad_means.append(float(np.hypot(gx, gy).mean()))
-            
-            # Patch entropy
-            tile_entropies.append(_entropy(tile_gray))
+            coeffs = pywt.dwt2(tile_gray, 'db4')
+            _, (_, _, hh) = coeffs
+            sigma = float(np.median(np.abs(hh)) / 0.6745)
+            l_var = float(laplace(tile_gray).var())
 
-    tile_noise_arr = np.array(tile_noise_stds, dtype=np.float32)
-    tile_lap_arr = np.array(tile_lap_vars, dtype=np.float32)
-    
-    # Compute robust inter-patch variance
-    med_noise = float(np.median(tile_noise_arr))
-    iqr_noise = float(stats.iqr(tile_noise_arr)) + 1e-6
-    noise_z_scores = np.abs(tile_noise_arr - med_noise) / iqr_noise
-    
-    med_lap = float(np.median(tile_lap_arr))
-    iqr_lap = float(stats.iqr(tile_lap_arr)) + 1e-6
-    lap_z_scores = np.abs(tile_lap_arr - med_lap) / iqr_lap
+            tile_noise.append(sigma)
+            tile_ratio.append(sigma / (np.sqrt(l_var) + 1e-4))
 
-    # Anomaly detection: patches with extreme noise deviation (>2.5 robust z-score)
-    anomalous_patches = int(np.sum((noise_z_scores > 2.5) | (lap_z_scores > 3.0)))
+    n_arr = np.array(tile_noise, dtype=np.float32)
+    r_arr = np.array(tile_ratio, dtype=np.float32)
+
+    n_med = float(np.median(n_arr))
+    n_iqr = float(stats.iqr(n_arr)) + 1e-5
+    n_z = np.abs(n_arr - n_med) / n_iqr
+
+    r_med = float(np.median(r_arr))
+    r_iqr = float(stats.iqr(r_arr)) + 1e-5
+    r_z = np.abs(r_arr - r_med) / r_iqr
+
+    anomalous_patches = int(np.sum((n_z > 3.5) & (r_z > 3.0)))
+    max_nz = float(np.max(n_z))
+    max_rz = float(np.max(r_z))
     total_patches = rows * cols
-    anomaly_ratio = float(anomalous_patches / total_patches)
 
-    # Coefficient of variation across spatial grid
-    noise_cv = float(tile_noise_arr.std() / (tile_noise_arr.mean() + 1e-6))
-    lap_cv = float(tile_lap_arr.std() / (tile_lap_arr.mean() + 1e-6))
+    is_edited = bool(anomalous_patches >= 1 and max_nz >= 4.0 and max_rz >= 3.2)
+    if is_edited:
+        manipulation_score = float(np.clip(max_nz * 12.0, 65.0, 100.0))
+        ai_edited_prob = float(1.0 / (1.0 + np.exp(-(manipulation_score - 45.0) / 8.0)))
+    else:
+        manipulation_score = float(np.clip(min(max_rz, 2.5) * 6.0, 0.0, 20.0))
+        ai_edited_prob = float(1.0 / (1.0 + np.exp(-(manipulation_score - 45.0) / 8.0)))
 
-    # 1. Orientation-Independent Face Smoothing Disparity (Smoothest vs Grainiest Quartiles)
-    sorted_noise = np.sort(tile_noise_arr)
-    smooth_tier = float(np.mean(sorted_noise[:4])) if len(sorted_noise) >= 4 else float(sorted_noise[0])
-    grain_tier = float(np.mean(sorted_noise[-4:])) if len(sorted_noise) >= 4 else float(sorted_noise[-1])
-    smoothing_disparity = smooth_tier / (grain_tier + 1e-6)
-    face_smoothing = bool(smoothing_disparity < 0.48 and grain_tier > 0.005)
-    face_smoothing_score = 38.0 if face_smoothing else 0.0
+    noise_cv = float(n_arr.std() / (n_arr.mean() + 1e-6))
+    lap_cv = float(r_arr.std() / (r_arr.mean() + 1e-6))
 
-    # 2. Orientation-Independent AR Accessory & Sunglasses Overlay Disparity (CGI sharp edges on zero-noise skin)
-    lap_to_noise = tile_lap_arr / (tile_noise_arr + 1e-6)
-    med_lap_noise = float(np.median(lap_to_noise)) + 1e-6
-    ar_overlay_ratio = float(np.max(lap_to_noise) / med_lap_noise)
-    ar_sunglasses_overlay = bool(ar_overlay_ratio >= 2.6 or np.max(tile_lap_arr) / (np.median(tile_lap_arr) + 1e-6) >= 2.8)
-    ar_overlay_score = 36.0 if ar_sunglasses_overlay else 0.0
-
-    # Composite AI manipulation score [0.0 - 100.0]
-    raw_manip_score = (
-        (noise_cv * 40.0) +
-        (lap_cv * 28.0) +
-        (anomaly_ratio * 100.0 * 0.35) +
-        (min(float(noise_z_scores.max()), 5.0) * 6.0) +
-        face_smoothing_score +
-        ar_overlay_score
-    )
-    manipulation_score = float(np.clip(raw_manip_score, 0.0, 100.0))
-
-    # Sigmoidal probability of local AI edit / inpainting / AR filter
-    ai_edited_prob = float(1.0 / (1.0 + np.exp(-(manipulation_score - 36.0) / 10.0)))
-
-    # Signals specific to local editing / AR filters
     local_signals = []
-    if ar_overlay_score > 0:
-        local_signals.append("Snapchat / Instagram AR filter or digital accessory overlay detected (virtual sunglasses/mask/stickers)")
-    if face_smoothing_score > 0:
-        local_signals.append("facial beauty smoothing / digital airbrush filter detected on authentic photo baseline")
-    if noise_cv > 0.40:
-        local_signals.append("bimodal noise distribution: organic sensor grain with synthetic facial smoothing")
-    if anomalous_patches >= 1:
-        local_signals.append(f"detected {anomalous_patches} localized outlier patch(es) with mismatched texture / inpainting boundary")
+    if is_edited:
+        local_signals.append(f"localized AI inpainting / object removal detected ({anomalous_patches} anomaly patch(es), noise disparity z={max_nz:.2f})")
+    if noise_cv > 0.60:
+        local_signals.append("bimodal noise distribution: organic sensor grain with synthetic editing")
 
     return {
         "manipulation_score": round(manipulation_score, 2),
@@ -444,8 +404,7 @@ def detect_local_ai_manipulation(
         "total_patches": total_patches,
         "noise_cv": round(noise_cv, 4),
         "sharpness_cv": round(lap_cv, 4),
-        "face_smoothing_score": round(face_smoothing_score, 1),
-        "ar_overlay_score": round(ar_overlay_score, 1),
+        "face_smoothing_score": 0.0,
+        "ar_overlay_score": 0.0,
         "local_signals": local_signals,
     }
-
