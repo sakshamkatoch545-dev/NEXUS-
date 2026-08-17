@@ -1,13 +1,13 @@
 <div align="center">
-  <img src="https://img.shields.io/badge/Version-6.0-blue?style=for-the-badge&logo=appveyor" alt="Version 6.0">
+  <img src="https://img.shields.io/badge/Version-7.0-blue?style=for-the-badge&logo=appveyor" alt="Version 7.0">
   <img src="https://img.shields.io/badge/Python-3.10%2B-green?style=for-the-badge&logo=python" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/Streamlit-UI-red?style=for-the-badge&logo=streamlit" alt="Streamlit">
   <img src="https://img.shields.io/badge/PyTorch-Deep%20Learning-orange?style=for-the-badge&logo=pytorch" alt="PyTorch">
   <img src="https://img.shields.io/badge/OpenAI-CLIP-412991?style=for-the-badge&logo=openai" alt="OpenAI CLIP">
   
   <br><br>
-  <h1>🔬 NEXUS+ AI Detector v6.0</h1>
-  <p><strong>Advanced 12-Engine Forensic Inspection Platform for Synthetic Media Detection</strong></p>
+  <h1>🔬 NEXUS+ AI Detector v7.0</h1>
+  <p><strong>Advanced 14-Engine Forensic Inspection Platform with Meta-Judge Consensus</strong></p>
   <br>
   <img src="screenshots/nexus_idle.png" alt="NEXUS+ App Screenshot - Idle State" width="90%">
   <br>
@@ -18,16 +18,18 @@
 
 ## 📖 Overview
 
-**NEXUS+** is a state-of-the-art, multi-modal image forensic platform engineered to detect AI-generated synthetic media with absolute precision. In an era where diffusion models like Midjourney v6, SDXL, and DALL-E 3 create hyper-realistic imagery, traditional single-model detection methods fail catastrophically. 
+**NEXUS+** is a state-of-the-art, multi-modal image forensic platform engineered to detect AI-generated synthetic media, deepfakes, and localized AI inpainting with absolute precision. In an era where modern diffusion models (Midjourney v6, SDXL, FLUX, DALL-E 3) and generative erase/inpainting tools create hyper-realistic imagery, traditional single-model detection methods fail catastrophically. 
 
-NEXUS+ solves this by cross-referencing **high-level semantic embeddings** with **microscopic, low-level signal processing** (Fourier transforms, Error Level Analysis, and micro-texture variance) to expose the invisible fingerprints that every AI generator leaves behind.
+NEXUS+ solves this by cross-referencing **high-level semantic embeddings**, **fine-tuned Vision Transformers**, **wavelet-based sensor noise disparity**, and an **integrated Bayesian Meta-Judge Engine** to expose invisible fingerprints that generative pipelines leave behind.
 
 ### ✨ Key Highlights
-- 🧠 **12 Specialized Detection Engines** — deep, multi-domain analysis
-- ⚡ **Instant Verdicts** — AI-Generated / Uncertain / Authentic  
-- 📊 **Per-Engine Breakdown** — see exactly what each engine found
-- 🎨 **Premium Glassmorphism UI** — modern, dark, and strikingly beautiful
-- 🔄 **Self-Improving** — supports local fine-tuning with your own dataset
+- 🧠 **14 Specialized Detection Engines** — deep, multi-domain forensic analysis
+- ⚖️ **Forensic Judge Meta-Engine** — multi-domain evidence synthesis & Bayesian arbitration
+- 🪄 **AI Inpainting & Object-Removal Forensics** — detects real camera photos with localized AI edits
+- ⚡ **Instant Verdicts** — AI-Generated / Real but AI-Edited / Uncertain / Authentic  
+- 📊 **Per-Engine Breakdown** — see exactly what each of the 14 engines discovered
+- 🎨 **Premium Glassmorphism UI** — modern, dark, and responsive interface
+- 🔄 **Self-Improving** — supports local fine-tuning with custom datasets
 
 ---
 
@@ -45,7 +47,7 @@ Your browser will open automatically at `http://localhost:8501`.
 
 ### Step 2 — Upload an Image
 
-On the **left column**, you will see the **Image Payload** card. Drag & drop any image (JPG, PNG, WEBP) into it, or click **Browse File** to open a file picker.
+On the **left column**, drag & drop any image (JPG, PNG, WEBP) into the **Image Payload** card, or click **Browse File** to open a file picker.
 
 <p align="center">
   <img src="sample_images/ai%20image.jpeg" alt="AI Generated Example" width="42%">
@@ -53,21 +55,21 @@ On the **left column**, you will see the **Image Payload** card. Drag & drop any
   <img src="sample_images/American-actress-Sydney-Sweeney-2022.webp" alt="Real Photograph Example" width="42%">
 </p>
 <p align="center">
-  <em>Left: An AI-generated image (high saturation, unnaturally smooth textures, studio backdrop) — Right: A real photograph with natural lighting and organic detail</em>
+  <em>Left: An AI-generated image — Right: A real photograph with natural optical depth and organic sensor grain</em>
 </p>
-
-After uploading, a preview of your image appears inside the card. Below it are the **12 Active Engines** listed — all 12 engines will be engaged once you fire the scan.
 
 ---
 
 ### Step 3 — Execute Forensic Scan
 
-Click the glowing **⚡ Execute Forensic Scan** button. The system begins running all 12 engines in parallel, performing:
+Click the glowing **⚡ Execute Forensic Scan** button. The system initiates all 14 engines:
 - Neural classification via HuggingFace pipelines
-- CLIP zero-shot semantic embedding comparison  
-- Computer vision analysis (FFT, ELA, texture, symmetry)
-- Local ViT model inference (if trained)
-- Watermark margin detection
+- OpenAI CLIP zero-shot semantic matching
+- Computer vision signal analysis (FFT, ELA, multi-scale texture, facial symmetry)
+- Donoho Wavelet PRNU sensor noise disparity scan (for localized inpainting)
+- Local dataset-trained Vision Transformer inference
+- Generator family provenance attribution
+- Forensic Meta-Judge Bayesian arbitration
 
 ---
 
@@ -78,72 +80,48 @@ The **right column** transforms to show your full forensic report:
 <p align="center">
   <img src="screenshots/nexus_results.png" alt="NEXUS+ App Screenshot - Scan Results" width="90%">
 </p>
-<p align="center">
-  <em>The verdict panel showing a high-confidence AI-Generated result with 87.3% AI probability</em>
-</p>
 
-The **verdict box** displays one of four outcomes:
-| Verdict | Meaning | Color |
+The **verdict panel** displays one of four calibrated outcomes:
+| Verdict | Meaning | Badge |
 |---|---|---|
-| 🚨 **AI-GENERATED** | Strong AI signature detected across multiple engines | 🔴 Red |
-| 🪄 **LIKELY REAL BUT EDITED BY AI** | Genuine camera foundation with localized AI inpainting, neural edits, or filters | 🟠 Amber |
-| ⚠️ **UNCERTAIN** | Mixed signals — borderline case requiring review | 🟡 Yellow |
-| ✅ **AUTHENTIC** | Natural camera characteristics confirmed | 🟢 Green |
-
-The **Human vs AI Breakdown** tab shows:
-- **AI Threat Score** out of 100
-- **Human Confidence %** vs **AI Probability %** metric cards
-- A **Forensic Summary** explaining the key findings in plain language
+| 🚨 **AI-GENERATED** | High-confidence synthetic generation detected across neural and forensic engines | 🔴 Red |
+| 🪄 **LIKELY REAL BUT EDITED BY AI** | Genuine camera foundation with localized generative fill, inpainting, or filters | 🟠 Amber |
+| ⚠️ **UNCERTAIN** | Borderline or mixed signals requiring human review | 🟡 Yellow |
+| ✅ **AUTHENTIC** | Verified natural optical camera capture with uniform sensor noise | 🟢 Green |
 
 ---
 
-### Step 5 — Drill Into Each Engine
-
-Switch to the **🔬 12-Engine Forensics** tab for the full deep-dive:
-
-<p align="center">
-  <img src="screenshots/nexus_engines.png" alt="NEXUS+ App Screenshot - Engine Breakdown" width="90%">
-</p>
-<p align="center">
-  <em>The 12-Engine Forensics tab — each engine shows its own score, risk badge, progress bar, and detailed explanation</em>
-</p>
-
-Each engine card shows:
-- **Engine icon and name**
-- **Risk badge** — `HIGH AI RISK`, `MODERATE`, or `LOW AI RISK`
-- **Score** (e.g. `87 / 100`) with human/AI split percentage
-- **Animated progress bar** colored by risk level
-- **Detailed explanation** — a paragraph describing what the engine found and why it scored the image the way it did
-
----
-
-## 🚀 The 11 Detection Engines
+## 🚀 The 14 Detection Engines
 
 ### 🧠 Layer 1 — Neural & Semantic Analysis
-
 | # | Engine | Technology | What it Detects |
 |---|---|---|---|
-| 01 | **Neural Network Ensemble** | HuggingFace Classifiers | High-level AI/real classification |
-| 02 | **CLIP Semantic Analysis** | OpenAI ViT-B-32 Zero-Shot | Semantic alignment with AI/real prompts |
-| 10 | **Fine-Tuned ViT Classifier** | Custom ViT Checkpoint | Locally trained AI image classification |
+| 01 | **Neural Network Ensemble** | ViT / ResNet Classifier | Multi-layer latent diffusion fingerprints |
+| 02 | **CLIP Semantic Analysis** | OpenAI CLIP Zero-Shot | Semantic alignment with AI vs real prompt priors |
+| 10 | **Fine-Tuned ViT Classifier** | Custom Local ViT | Hyperrealistic synthetic facial diffusion patterns |
 
-### 🔍 Layer 2 — Signal Processing & Artifact Forensics
-
+### 🔍 Layer 2 — Signal Processing & Forensic Physics
 | # | Engine | Technology | What it Detects |
 |---|---|---|---|
-| 03 | **Texture Smoothness** | Multi-Scale Micro-Variance | Unnatural pixel-level smoothing |
-| 05 | **Frequency Domain (FFT)** | Fourier Energy Spectrum | High-frequency sensor noise deficit |
-| 09 | **Error Level Analysis (ELA)** | JPEG Compression Residual | Uniform compression artifacts |
-| 11 | **Watermark Detection** | Contour Margin Analysis | Generator watermarks & logos |
+| 03 | **Texture Smoothness** | Multi-Scale Micro-Variance | Unnatural synthetic skin and fabric smoothing |
+| 05 | **Frequency Domain (FFT)** | 2D Fourier Energy Spectrum | High-frequency sensor noise loss & grid artifacts |
+| 09 | **Error Level Analysis (ELA)** | JPEG Quantization Residual | Re-compression error inconsistencies |
+| 11 | **Watermark Detection** | Contour & Alignment Analysis | Generator margin logos, text, and signatures |
 
-### 🎨 Layer 3 — Composition & Color Forensics
-
+### 🎨 Layer 3 — Inpainting, Biometrics & Provenance
 | # | Engine | Technology | What it Detects |
 |---|---|---|---|
-| 04 | **Color & Saturation** | HSV Saturation Distribution | Hyper-stylized vivid palettes |
-| 06 | **Background & Edge** | Studio Uniformity Check | Flat gradient backdrops |
-| 07 | **Portrait Style** | Composition & Framing | AI diffusion framing patterns |
-| 08 | **Face Symmetry & Smoothness** | Facial Landmark & Blur | Unnatural bilateral symmetry |
+| 04 | **Color & Saturation** | HSV Saturation Distribution | Hyper-saturated neon diffusion color palettes |
+| 06 | **Background & Edge** | Studio Edge & Depth Check | Synthetic bokeh and cutout edge anomalies |
+| 07 | **Portrait Style** | Composition & Framing | Stock-AI framing and portrait templates |
+| 08 | **Face Symmetry & Micro-Texture** | Landmark & Pore Geometry | Unnatural bilateral symmetry & waxy skin |
+| 12 | **AI Provenance Engine** | Generator-Family Signatures | Midjourney, DALL-E, SDXL, Flux attribution |
+| 13 | **AI Inpainting & Retouch Forensics** | Wavelet Residual Disparity | Localized AI generative fill, eraser, & inpainting |
+
+### ⚖️ Layer 4 — Meta-Consensus
+| # | Engine | Technology | What it Detects |
+|---|---|---|---|
+| 14 | **Forensic Judge Engine** | Multi-Domain Bayesian Arbitration | Synthesizes all 13 vectors to produce the final calibrated verdict |
 
 ---
 

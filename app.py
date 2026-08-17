@@ -230,9 +230,9 @@ def _clear_scan_state(clear_upload: bool = False):
 
 
 def _render_engine_grid(result: dict):
-    """13-engine score cards from a completed scan."""
+    """14-engine score cards from a completed scan."""
     html_cards = []
-    for idx, (_key, eng) in enumerate(result["engines"].items()):
+    for idx, (key, eng) in enumerate(result["engines"].items()):
         s = eng["score"]
         mx = eng["max"]
         pct = (s / mx * 100) if mx > 0 else 0
@@ -247,8 +247,10 @@ def _render_engine_grid(result: dict):
             badge_cls, fill_cls, badge_txt = "badge-low", "efill-lo", "LOW AI RISK"
 
         icon = eng.get("icon", "🔬")
+        is_judge = (key == "forensic_judge")
+        judge_style = "border: 1px solid rgba(6,182,212,0.5); background: linear-gradient(135deg, rgba(15,23,42,0.92) 0%, rgba(6,182,212,0.08) 100%);" if is_judge else ""
         card_html = (
-            f'<div class="engine-card" style="animation-delay:{(idx % 6) * 0.06:.2f}s">'
+            f'<div class="engine-card" style="animation-delay:{(idx % 6) * 0.06:.2f}s; {judge_style}">'
             f'<div class="engine-header">'
             f'<span class="engine-name">{icon} {eng["name"]}</span>'
             f'<span class="engine-badge {badge_cls}">{badge_txt}</span>'
@@ -270,8 +272,8 @@ def _render_engine_grid(result: dict):
 
     grid_html = (
         '<div class="section-heading">'
-        '<span class="sh-icon">🔬</span>'
-        '<span class="sh-text">13-Engine Forensics</span>'
+        '<span class="sh-icon">⚖️</span>'
+        '<span class="sh-text">14-Engine Multi-Domain Forensics</span>'
         '<span class="sh-line"></span>'
         '</div>'
         f'<div class="engine-grid">{"".join(html_cards)}</div>'
@@ -283,8 +285,8 @@ ENGINES_INFO = [
     {
         "num": "01",
         "name": "Neural Network Ensemble",
-        "tag": "HuggingFace Classifiers",
-        "summary": "Runs multiple pretrained HuggingFace vision classifiers on your image. Each model votes AI vs. real; NEXUS+ blends those votes into a single neural consensus score for the final verdict.",
+        "tag": "ViT / ResNet Classifier",
+        "summary": "Deep vision backbone extracting multi-layer representations to detect spatial and latent diffusion fingerprints across synthesized imagery.",
     },
     {
         "num": "02",
@@ -355,14 +357,20 @@ ENGINES_INFO = [
     {
         "num": "13",
         "name": "AI Inpainting & Retouch Forensics",
-        "tag": "ZeroGPT-Style Localized Forensics",
-        "summary": "Scans spatial patch grids for bimodal sensor noise and boundary gradient jumps. Accurately flags authentic camera photographs that have been partially edited, enhanced, or inpainted by AI.",
+        "tag": "Wavelet Sensor Noise Disparity",
+        "summary": "Scans multi-tile spatial grids with Donoho wavelets and texture-normalized ratios. Accurately flags authentic camera photographs that have been partially edited, enhanced, or inpainted by AI.",
+    },
+    {
+        "num": "14",
+        "name": "Forensic Judge & Meta-Consensus",
+        "tag": "Multi-Domain Judicial Arbitration",
+        "summary": "Synthesizes evidence across all neural, spectral, compression, and inpainting domains into a unified Bayesian consensus to maximize detection precision and eliminate borderline ambiguities.",
     },
 ]
 
 
 def _render_engine_catalog():
-    """Clickable list of all 13 engines — tap any row for a short summary."""
+    """Clickable list of all 14 engines — tap any row for a short summary."""
     st.markdown(
         '<p class="engine-catalog-hint">Click any engine to see what it uses and how it helps detection.</p>',
         unsafe_allow_html=True,
@@ -589,8 +597,8 @@ def _go_execution(clear_upload: bool = True):
 def _render_execution_header():
     """Page header for the execution / upload screen."""
     _render_page_subheader(
-        "Upload image payload · run 13-engine scan",
-        ["System ready", "13 engines armed", "PNG · JPG · WEBP"],
+        "Upload image payload · run 14-engine scan",
+        ["System ready", "14 engines armed", "PNG · JPG · WEBP"],
         live=True,
     )
 
@@ -624,11 +632,11 @@ if st.session_state.page == "landing":
         <div class="liquid-hero-frame landing-page page-fade" style="text-align: center;">
             <div class="status-badge-wrap">
                 <span class="status-dot"></span>
-                <span class="status-text">13 FORENSIC ENGINES ONLINE</span>
+                <span class="status-text">14 FORENSIC ENGINES ONLINE</span>
             </div>
-            <h1 class="landing-hero">NEXUS+ <span class="version-badge">v6.0</span></h1>
-            <p class="landing-tagline"><b>Advanced AI Image Forensics</b></p>
-            <p class="landing-subtagline">Calibrated for <b>Diffusion Models</b> & <b>GANs</b></p>
+            <h1 class="landing-hero">NEXUS+ <span class="version-badge">v7.0</span></h1>
+            <p class="landing-tagline"><b>Advanced AI Image Forensics & Meta-Judge</b></p>
+            <p class="landing-subtagline">Calibrated for <b>Diffusion Models</b>, <b>GANs</b> & <b>AI Inpainting</b></p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -637,7 +645,7 @@ if st.session_state.page == "landing":
     st.markdown("""
     <div class="landing-metrics-bar">
         <div class="l-metric-card">
-            <span class="lm-val">13</span>
+            <span class="lm-val">14</span>
             <span class="lm-lbl">Detection Engines</span>
         </div>
         <div class="l-metric-card">
@@ -649,8 +657,8 @@ if st.session_state.page == "landing":
             <span class="lm-lbl">Neural Consensus</span>
         </div>
         <div class="l-metric-card">
-            <span class="lm-val">Provenance</span>
-            <span class="lm-lbl">Generator Attribution</span>
+            <span class="lm-val">AI Judge</span>
+            <span class="lm-lbl">Meta-Arbitration</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -658,7 +666,7 @@ if st.session_state.page == "landing":
     st.markdown("""
     <div class="landing-cta-box">
         <h3 class="cta-title">Ready for Forensic Inspection?</h3>
-        <p class="cta-desc">Upload any profile picture, media render, or suspect photo to generate a comprehensive 13-engine threat score breakdown.</p>
+        <p class="cta-desc">Upload any profile picture, media render, or suspect photo to generate a comprehensive 14-engine threat score breakdown.</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -686,9 +694,9 @@ if st.session_state.page == "landing":
             <div class="pillar-desc">Re-compresses JPEG error levels (ELA) and analyzes spatial noise/gradient boundaries to detect localized AI inpainting and generative edits.</div>
         </div>
         <div class="pillar-card">
-            <div class="pillar-icon">🧬</div>
-            <div class="pillar-title">Generator Provenance</div>
-            <div class="pillar-desc">Matches visual fingerprints against known generator families (Stable Diffusion, Midjourney, DALL-E, Flux) for origin attribution.</div>
+            <div class="pillar-icon">⚖️</div>
+            <div class="pillar-title">Forensic Judge Engine</div>
+            <div class="pillar-desc">Meta-ensemble arbitration synthesizes cross-domain signals into a Bayesian consensus to eliminate borderline ambiguity.</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -699,7 +707,7 @@ if st.session_state.page == "landing":
     )
     st.markdown(f"""
     <div class="glass-card" style="text-align:center; margin-top: 1.5rem;">
-        <div class="glass-title" style="justify-content:center;">🛡️ 13 Active Forensic Inspection Modules</div>
+        <div class="glass-title" style="justify-content:center;">🛡️ 14 Active Forensic Inspection Modules</div>
         <div class="showcase-chip-grid">{chips}</div>
     </div>
     """, unsafe_allow_html=True)
@@ -716,7 +724,7 @@ elif st.session_state.page == "engines":
     )
     _render_page_subheader(
         "Forensic modules in every scan",
-        ["13 modules", "Neural · Spectral · Inpainting · Provenance"],
+        ["14 modules", "Neural · Spectral · Inpainting · Provenance · Judge"],
     )
 
     if _has_live_scan():
@@ -835,7 +843,7 @@ elif st.session_state.page == "execute":
         )
         st.markdown(f"""
         <div class="glass-card" style="text-align:center;">
-            <div class="glass-title" style="justify-content:center;">13 Detection Engines Ready</div>
+            <div class="glass-title" style="justify-content:center;">14 Detection Engines Ready</div>
             <div class="engine-chip-strip">{chips}</div>
         </div>
         """, unsafe_allow_html=True)
@@ -854,7 +862,7 @@ elif st.session_state.page == "execute":
                     unsafe_allow_html=True,
                 )
             
-            _st_progress(20, "Armed 13 forensic & neural engines (including AI Inpainting)...")
+            _st_progress(20, "Armed 14 forensic & neural engines (including AI Judge & Inpainting)...")
             result = full_image_analysis(image)
             _st_progress(100, "Forensic consensus verified!")
 
@@ -886,7 +894,7 @@ elif st.session_state.page == "results":
 
     st.markdown(
         "<h1 style='font-size:1.9rem !important;'>NEXUS+ "
-        "<span class='version-badge' style='font-size:1rem;'>v6.0 · SCAN RESULTS</span></h1>",
+        "<span class='version-badge' style='font-size:1rem;'>v7.0 · SCAN RESULTS</span></h1>",
         unsafe_allow_html=True,
     )
 
@@ -956,7 +964,7 @@ elif st.session_state.page == "results":
             </div>
             <div style="margin-top:0.8rem;font-family:'JetBrains Mono',monospace;font-size:0.72rem;
                 color:rgba(226,232,240,.72);letter-spacing:0.06em;">
-                13-ENGINE AVERAGE: {ai_pct:.1f}% AI · {human_pct:.1f}% HUMAN
+                14-ENGINE AVERAGE: {ai_pct:.1f}% AI · {human_pct:.1f}% HUMAN
                 <span style="opacity:0.65;">({ai_votes} HIGH-RISK · {human_votes} LOWER-RISK)</span>
             </div>
         </div>
@@ -1006,7 +1014,7 @@ elif st.session_state.page == "results":
 
     _, eng_cta, _ = st.columns([1, 1.2, 1])
     with eng_cta:
-        if st.button("View 13-engine breakdown →", use_container_width=True, type="primary"):
+        if st.button("View 14-engine breakdown →", use_container_width=True, type="primary"):
             st.session_state.page = "engines"
             st.rerun()
 
@@ -1016,8 +1024,8 @@ elif st.session_state.page == "results":
 # ──────────────────────────────────────────────
 
 st.markdown(
-    '<div class="footer-text">NEXUS+ <span>·</span> AI Detector v6.0 <span>·</span> '
-    '13-Engine Multi-Domain Forensics <span>·</span> '
+    '<div class="footer-text">NEXUS+ <span>·</span> AI Detector v7.0 <span>·</span> '
+    '14-Engine Multi-Domain Forensics + AI Judge <span>·</span> '
     'HuggingFace + OpenAI CLIP + FFT + Inpainting Forensics</div>',
     unsafe_allow_html=True,
 )

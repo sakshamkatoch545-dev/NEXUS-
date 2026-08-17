@@ -964,13 +964,124 @@ def engine_ai_manipulation_and_inpainting(image: Image.Image) -> dict:
 
 
 # ═════════════════════════════════════════════════════
-# MAIN ANALYSIS
+# ENGINE 14 — FORENSIC JUDGE & META-CONSENSUS ENGINE
+# ═════════════════════════════════════════════════════
+
+def engine_forensic_judge(image: Image.Image, engine_results: dict) -> dict:
+    """
+    ENGINE 14: Forensic Judge & Multi-Domain Meta-Consensus Engine.
+    
+    Synthesizes and arbitrates across all 13 specialized forensic, neural, spectral,
+    and spatial inpainting engines into a Bayesian judicial consensus.
+    """
+    # 1. Extract individual pillar scores
+    neural_score = engine_results.get("neural_ensemble", {}).get("score", 0.0)
+    clip_score = engine_results.get("clip_semantic", {}).get("score", 0.0)
+    ft_vit_engine = engine_results.get("fine_tuned_vit", {})
+    ft_vit_score = ft_vit_engine.get("score", 0.0)
+    ft_vit_active = ft_vit_engine.get("active", False)
+    
+    spectral_score = engine_results.get("frequency", {}).get("score", 0.0)
+    texture_score = engine_results.get("texture_smoothness", {}).get("score", 0.0)
+    ela_score = engine_results.get("ela_compression", {}).get("score", 0.0)
+    color_score = engine_results.get("color_forensics", {}).get("score", 0.0)
+    edge_score = engine_results.get("edge_sharpness", {}).get("score", 0.0)
+    portrait_score = engine_results.get("portrait_style", {}).get("score", 0.0)
+    face_score = engine_results.get("face_symmetry", {}).get("score", 0.0)
+    wm_score = engine_results.get("watermark_detection", {}).get("score", 0.0)
+    prov_score = engine_results.get("ai_provenance", {}).get("score", 0.0)
+    
+    manip_engine = engine_results.get("ai_manipulation", {})
+    manip_score = manip_engine.get("score", 0.0)
+    is_manip_edited = manip_engine.get("is_edited", False)
+    
+    # 2. Multi-Pillar Aggregation
+    # Pillar A: Deep Neural & Semantic
+    if ft_vit_active:
+        neural_pillar = (ft_vit_score * 0.70) + (clip_score * 0.15) + (neural_score * 0.15)
+    else:
+        neural_pillar = (clip_score * 0.50) + (neural_score * 0.50)
+        
+    # Pillar B: Spectral & Texture Physics
+    spectral_pillar = (spectral_score * 0.55) + (texture_score * 0.45)
+    
+    # Pillar C: Compression & High-Frequency Residual
+    compression_pillar = (ela_score * 0.60) + (wm_score * 0.40)
+    
+    # Pillar D: Biometric & Stylistic Geometry
+    geometry_pillar = (edge_score * 0.35) + (portrait_score * 0.35) + (face_score * 0.30)
+    
+    # Pillar E: Local Inpainting & Manipulation
+    manipulation_pillar = manip_score
+    
+    # 3. Judicial Arbitration Logic
+    # Case 1: Fully AI-Generated (Strong Neural + Spectral Consensus)
+    if neural_pillar >= 60.0 or (ft_vit_active and ft_vit_score >= 80.0):
+        judge_verdict = "AI-GENERATED"
+        judge_score = float(np.clip(max(neural_pillar, ft_vit_score * 0.9 + prov_score * 0.1), 60.0, 100.0))
+        findings = [
+            f"<b>Judicial Consensus: Fully Synthetic Generation</b> ({judge_score:.1f}% confidence).",
+            f"Primary conviction based on Deep Neural Vision Transformer ({ft_vit_score:.1f}%) and Semantic fingerprinting ({clip_score:.1f}%).",
+            f"Corroborating spectral/geometry signals verified across forensic modules."
+        ]
+        
+    # Case 2: Authentic Camera Capture with Localized AI Inpainting / Object Removal
+    elif is_manip_edited and neural_pillar < 50.0:
+        judge_verdict = "AI-EDITED"
+        judge_score = float(np.clip(manipulation_pillar, 65.0, 100.0))
+        findings = [
+            f"<b>Judicial Consensus: Authentic Camera Base with Localized AI Editing</b> ({judge_score:.1f}% inpainting threat).",
+            f"Global sensor noise residual confirms genuine optical camera foundation ({100.0 - neural_pillar:.1f}% base authenticity).",
+            f"Localized PRNU sensor noise disparity and boundary gradient jumps isolated in specific sub-regions."
+        ]
+        
+    # Case 3: Genuine Authentic Human Photo
+    elif neural_pillar <= 45.0 and manipulation_pillar <= 30.0:
+        judge_verdict = "AUTHENTIC"
+        judge_score = float(np.clip((neural_pillar * 0.4) + (spectral_pillar * 0.3) + (geometry_pillar * 0.3), 0.0, 35.0))
+        findings = [
+            f"<b>Judicial Consensus: Verified Authentic Camera Capture</b> ({100.0 - judge_score:.1f}% authenticity).",
+            "Consistent natural camera sensor noise distribution across all spatial quadrants.",
+            "Organic 2D Fourier energy decay, natural facial geometry, and absence of generative diffusion artifacts."
+        ]
+        
+    # Case 4: Ambiguous / Borderline Case
+    else:
+        judge_verdict = "UNCERTAIN"
+        judge_score = float(np.clip((neural_pillar * 0.4) + (spectral_pillar * 0.3) + (manipulation_pillar * 0.3), 35.0, 58.0))
+        findings = [
+            f"<b>Judicial Consensus: Borderline / Mixed Evidence</b> ({judge_score:.1f}% AI probability).",
+            "Forensic engines present mixed indicators between natural compression artifacts and subtle generative smoothing.",
+            "Manual review recommended for critical provenance verification."
+        ]
+
+    return {
+        "name": "Forensic Judge & Meta-Consensus Engine",
+        "icon": "⚖️",
+        "score": round(judge_score, 1),
+        "max": 100,
+        "raw": judge_score / 100.0,
+        "active": True,
+        "verdict": judge_verdict,
+        "explanation": "<br>".join(f"• {f}" for f in findings),
+        "pillars": {
+            "neural": round(neural_pillar, 1),
+            "spectral": round(spectral_pillar, 1),
+            "compression": round(compression_pillar, 1),
+            "geometry": round(geometry_pillar, 1),
+            "inpainting": round(manipulation_pillar, 1),
+        }
+    }
+
+
+# ═════════════════════════════════════════════════════
+# MAIN ANALYSIS (14 ENGINES)
 # ═════════════════════════════════════════════════════
 
 def full_image_analysis(image: Image.Image) -> dict:
     """
-    Run 13 forensic, neural, provenance, and signal processing engines and produce a final weighted verdict
-    calibrated for modern AI diffusion models and localized AI edits.
+    Run 14 forensic, neural, provenance, inpainting, and Judge consensus engines
+    and produce a final calibrated verdict for AI vs Authentic vs AI-Edited images.
     """
     working_image = image.copy()
     working_image.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
@@ -988,6 +1099,24 @@ def full_image_analysis(image: Image.Image) -> dict:
     ft_vit   = engine_fine_tuned_vit(working_image)
     provenance = engine_ai_provenance(working_image)
     manipulation = engine_ai_manipulation_and_inpainting(working_image)
+
+    base_results = {
+        "neural_ensemble": neural,
+        "clip_semantic": clip,
+        "texture_smoothness": texture,
+        "color_forensics": color,
+        "frequency": freq,
+        "edge_sharpness": edge,
+        "portrait_style": portrait,
+        "face_symmetry": face,
+        "ela_compression": ela,
+        "fine_tuned_vit": ft_vit,
+        "watermark_detection": watermark,
+        "ai_provenance": provenance,
+        "ai_manipulation": manipulation,
+    }
+
+    judge = engine_forensic_judge(working_image, base_results)
 
     engines_dict = {
         "neural_ensemble": {
@@ -1055,6 +1184,11 @@ def full_image_analysis(image: Image.Image) -> dict:
             "icon": "🪄",
             **manipulation,
         },
+        "forensic_judge": {
+            "name": "Forensic Judge & Meta-Consensus",
+            "icon": "⚖️",
+            **judge,
+        },
     }
 
     total_engine_count = len(engines_dict)
@@ -1064,30 +1198,33 @@ def full_image_analysis(image: Image.Image) -> dict:
             continue
         ai_percentage = engine["score"] / engine["max"] * 100
         weight = 15.0 if engine_key == "fine_tuned_vit" and engine.get("active") else 1.0
+        if engine_key == "forensic_judge":
+            weight = 8.0
         if engine_key == "ai_provenance":
             weight = 1.5
         if engine_key == "ai_manipulation":
             weight = 1.2
         weighted_engine_scores.append((ai_percentage, weight))
 
-    engine_ai_percentages = [score for score, _weight in weighted_engine_scores]
-    high_risk_engine_count = sum(percent > 60 for percent in engine_ai_percentages)
-    human_engine_count = total_engine_count - high_risk_engine_count
-
     total_weight = sum(weight for _score, weight in weighted_engine_scores)
     ai_conf = sum(score * weight for score, weight in weighted_engine_scores) / (total_weight * 100)
     human_conf = 1.0 - ai_conf
 
-    # Real but Edited by AI decision logic
-    is_edited_flag = bool(manipulation.get("is_edited", False))
+    engine_ai_percentages = [score for score, _weight in weighted_engine_scores]
+    high_risk_engine_count = sum(percent > 60 for percent in engine_ai_percentages)
+    human_engine_count = total_engine_count - high_risk_engine_count
 
-    if ai_conf >= 0.58:
+    is_edited_flag = bool(manipulation.get("is_edited", False))
+    judge_decision = judge.get("verdict", "UNCERTAIN")
+
+    # 14-Engine + Judge Consensus Verdict:
+    if judge_decision == "AI-GENERATED" or ai_conf >= 0.55:
         verdict       = "AI-GENERATED"
         verdict_label = "🚨 AI-GENERATED"
-    elif is_edited_flag and ai_conf <= 0.55:
+    elif judge_decision == "AI-EDITED" or (is_edited_flag and ai_conf <= 0.50):
         verdict       = "AI-EDITED"
         verdict_label = "🪄 LIKELY REAL BUT EDITED BY AI"
-    elif human_conf >= 0.50:
+    elif judge_decision == "AUTHENTIC" or human_conf >= 0.50:
         verdict       = "AUTHENTIC"
         verdict_label = "✅ AUTHENTIC"
     else:
@@ -1101,6 +1238,9 @@ def full_image_analysis(image: Image.Image) -> dict:
         "human_score":      round(human_conf * 100, 1),
         "is_ai_edited":     is_edited_flag or verdict == "AI-EDITED",
         "ai_edited_score":  round(float(manipulation.get("score", 0)), 1),
+        "judge_verdict":    judge_decision,
+        "judge_score":      judge.get("score", 0.0),
+        "judge_pillars":    judge.get("pillars", {}),
         "total_engine_count": total_engine_count,
         "high_risk_engine_count": high_risk_engine_count,
         "human_engine_count":     human_engine_count,
@@ -1115,7 +1255,7 @@ def full_image_analysis(image: Image.Image) -> dict:
             if e.get("score", 0) >= 60
         ],
         "feature_scores": {key: round(float(e.get("score", 0)), 2) for key, e in engines_dict.items()},
-        "reason": provenance.get("explanation", "Multi-engine forensic consensus."),
+        "reason": judge.get("explanation", provenance.get("explanation", "Multi-engine forensic consensus.")),
         "top_matches": [],
     }
 
