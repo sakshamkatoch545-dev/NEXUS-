@@ -1,0 +1,125 @@
+"""
+register_and_lock_image.py
+==========================
+Registers user-provided training images into the permanent dataset,
+records full multi-engine forensic results into an immutable registry,
+and generates locked reports until explicitly unlocked with permission.
+"""
+
+import os
+import sys
+import json
+import time
+import hashlib
+import shutil
+from pathlib import Path
+from PIL import Image
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from src.detector import full_image_analysis
+
+ROOT = Path(__file__).resolve().parent.parent
+REAL_DIR = ROOT / "data" / "dataset" / "real"
+AI_DIR = ROOT / "data" / "dataset" / "ai"
+REGISTRY_FILE = ROOT / "results" / "authenticated_registry.json"
+REPORTS_DIR = ROOT / "results" / "locked_reports"
+
+REAL_DIR.mkdir(parents=True, exist_ok=True)
+AI_DIR.mkdir(parents=True, exist_ok=True)
+REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+
+def compute_sha256(file_path: str) -> str:
+    h = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        while chunk := f.read(8192):
+            h.update(chunk)
+    return h.hexdigest()
+
+def load_registry() -> dict:
+    if REGISTRY_FILE.exists():
+        try:
+            with open(REGISTRY_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+def save_registry(reg: dict):
+    with open(REGISTRY_FILE, "w", encoding="utf-8") as f:
+        json.dump(reg, f, indent=2, ensure_ascii=False)
+
+def ingest_and_lock(image_path: str, label_type: str = "real", force_override: bool = False) -> dict:
+    file_sha = compute_sha256(image_path)
+    reg = load_registry()
+
+    if file_sha in reg and not force_override:
+        print(f"[LOCK ENFORCED] Image {file_sha[:12]} already locked in registry. Preserving original output.")
+        return reg[file_sha]
+
+    img = Image.open(image_path).convert("RGB")
+    res = full_image_analysis(img)
+
+    dest_folder = REAL_DIR if label_type == "real" else AI_DIR
+    ext = Path(image_path).suffix or ".jpg"
+    target_filename = f"feedback_{label_type}_{file_sha[:12]}{ext}"
+    target_path = dest_folder / target_filename
+    shutil.copyfile(image_path, target_path)
+
+    record = {
+        "sha256": file_sha,
+        "filename": os.path.basename(image_path),
+        "dataset_path": str(target_path.relative_to(ROOT)),
+        "label": label_type,
+        "status": "LOCKED_IMMUTABLE",
+        "registered_at": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
+        "verdict": res["verdict"],
+        "verdict_label": res["verdict_label"],
+        "human_score": res["human_score"],
+        "ai_score": res["confidence_score"],
+        "judge_verdict": res["judge_verdict"],
+        "judge_score": res["judge_score"],
+        "judge_pillars": res["judge_pillars"],
+        "engines": {
+            k: {
+                "name": v.get("name", k),
+                "score": v.get("score"),
+                "max": v.get("max"),
+                "raw": v.get("raw"),
+                "explanation": v.get("explanation")
+            }
+            for k, v in res["engines"].items()
+        }
+    }
+
+    reg[file_sha] = record
+    save_registry(reg)
+
+    # Save detailed markdown report
+    md_path = REPORTS_DIR / f"report_{file_sha[:12]}.md"
+    with open(md_path, "w", encoding="utf-8") as f:
+        f.write(f"# NEXUS+ Locked Forensic Certificate\n\n")
+        f.write(f"- **Image SHA256:** `{file_sha}`\n")
+        f.write(f"- **Archived In Dataset:** `{record['dataset_path']}`\n")
+        f.write(f"- **Timestamp:** `{record['registered_at']}`\n")
+        f.write(f"- **Final Verdict:** `{record['verdict_label']}`\n")
+        f.write(f"- **Human Authenticity:** `{record['human_score']}%`\n")
+        f.write(f"- **AI Score:** `{record['ai_score']}%`\n")
+        f.write(f"- **Judge Consensus:** `{record['judge_verdict']}` (Score: {record['judge_score']}/100)\n\n")
+        f.write(f"## 14-Engine Forensic Scores\n\n")
+        for k, eng in record["engines"].items():
+            f.write(f"- **{eng['name']}**: `{eng['score']}/{eng['max']}`\n")
+        f.write(f"\n*Status: LOCKED_IMMUTABLE. Changes require user authorization.*\n")
+
+    print(f"[SUCCESS] Image registered, locked, and stored at {target_path}")
+    print(f"[REPORT] Saved to {md_path}")
+    return record
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        path = sys.argv[1]
+        lbl = sys.argv[2] if len(sys.argv) > 2 else "real"
+        ingest_and_lock(path, lbl)
+    else:
+        uploaded_path = r"C:\Users\saksh\.gemini\antigravity-ide\brain\87826ea9-0d35-4429-aeae-81ccc2c90e3a\.user_uploaded\media_1787147247627.jpg"
+        if os.path.exists(uploaded_path):
+            ingest_and_lock(uploaded_path, "real")

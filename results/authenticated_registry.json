@@ -1,0 +1,123 @@
+{
+  "769da160a303ac829b77d63b38ea4a63ec782d8dc4612bd9415dc11c23c96fa8": {
+    "sha256": "769da160a303ac829b77d63b38ea4a63ec782d8dc4612bd9415dc11c23c96fa8",
+    "filename": "media_1787147247627.jpg",
+    "dataset_path": "data\\dataset\\real\\feedback_real_769da160a303.jpg",
+    "label": "real",
+    "status": "LOCKED_IMMUTABLE",
+    "registered_at": "2026-08-19 13:56:09 UTC",
+    "verdict": "AUTHENTIC",
+    "verdict_label": "✅ AUTHENTIC",
+    "human_score": 95.5,
+    "ai_score": 4.5,
+    "judge_verdict": "AUTHENTIC",
+    "judge_score": 1.9,
+    "judge_pillars": {
+      "neural": 0.7,
+      "spectral": 5.4,
+      "compression": 21.0,
+      "geometry": 0.0,
+      "inpainting": 0
+    },
+    "engines": {
+      "neural_ensemble": {
+        "name": "Neural Network Ensemble",
+        "score": 1.3,
+        "max": 100,
+        "raw": 0.01309993863105774,
+        "explanation": "Neural classifiers report authentic — 1% AI probability.<br><b>Models:</b> sdxl-detector: REAL (0%) · AI-image-detector: REAL (3%)<br><i style='color:#94a3b8;font-size:0.7rem;'>Note: These classifiers are trained on GAN-era fakes and frequently misclassify modern diffusion model outputs as real.</i>"
+      },
+      "clip_semantic": {
+        "name": "CLIP Semantic Analysis",
+        "score": 3.6,
+        "max": 100,
+        "raw": 0.03564727193462745,
+        "explanation": "CLIP embedding is <b>96%</b> aligned with real photograph semantics.<br>Visual features consistent with camera-captured content."
+      },
+      "texture_smoothness": {
+        "name": "Texture Smoothness Analysis",
+        "score": 12,
+        "max": 100,
+        "raw": 0.12,
+        "explanation": "• <b>Smooth pixel texture (value=7.08)</b> — Below-average texture smoothness. Possible AI generation.<br>• Slightly low coarse texture (value=14.35).<br>• Full-frame optical structure is authentic (variance=912.7) — facial softness is consistent with mobile front-camera optical smoothing."
+      },
+      "color_forensics": {
+        "name": "Color & Saturation Forensics",
+        "score": 15,
+        "max": 100,
+        "raw": 0.15,
+        "explanation": "• Natural skin tone saturation (mean=65) — Consistent with authentic camera sensor response in natural/indoor lighting.<br>• Slightly low saturation variance (std=23.6).<br>• No large white background area (1% near-white pixels) — Consistent with real photography."
+      },
+      "frequency": {
+        "name": "Frequency Domain (FFT)",
+        "score": 0,
+        "max": 100,
+        "raw": 0.0,
+        "explanation": "• Natural frequency distribution (ratio=0.835).<br>• Natural very-high-frequency sensor response (VHF=0.802)."
+      },
+      "edge_sharpness": {
+        "name": "Background & Edge Analysis",
+        "score": 0,
+        "max": 100,
+        "raw": 0.0,
+        "explanation": "• Natural background texture (bg_sharpness=944, brightness=100).<br>• Natural background variation (std=63.9)."
+      },
+      "portrait_style": {
+        "name": "Portrait Style Analysis",
+        "score": 0,
+        "max": 100,
+        "raw": 0.0,
+        "explanation": "• No significant white background (4%)."
+      },
+      "face_symmetry": {
+        "name": "Face Symmetry & Micro-Texture",
+        "score": 0,
+        "max": 100,
+        "raw": 0.0,
+        "explanation": "• No distinct frontal face detected; evaluating central region micro-symmetry.<br>• Natural facial asymmetry (rel_diff=0.576) — consistent with real human biology.<br>• Authentic skin micro-details present (sharpness=1219.4) — organic pores, hair, and specular highlights verified."
+      },
+      "ela_compression": {
+        "name": "Error Level Analysis (ELA)",
+        "score": 35,
+        "max": 100,
+        "raw": 0.35,
+        "explanation": "• Low ELA variation (std=14.69) — typical of AI diffusion outputs."
+      },
+      "fine_tuned_vit": {
+        "name": "Fine-Tuned ViT Classifier",
+        "score": 0.0,
+        "max": 100,
+        "raw": 2.1950270365778124e-06,
+        "explanation": "<b>Fine-Tuned ViT Model Output:</b> 0.0% AI confidence."
+      },
+      "watermark_detection": {
+        "name": "Watermark Detection",
+        "score": 0,
+        "max": 100,
+        "raw": 0.0,
+        "explanation": "No watermark pattern detected."
+      },
+      "ai_provenance": {
+        "name": "AI & Generator Provenance Engine",
+        "score": 52.7,
+        "max": 100,
+        "raw": 0.526980671286583,
+        "explanation": "• No camera EXIF metadata (weak signal; social apps often remove it)<br>• Semantic generator-family compatibility is probabilistic, not provider attribution"
+      },
+      "ai_manipulation": {
+        "name": "AI Inpainting & Retouch Forensics",
+        "score": 0,
+        "max": 100,
+        "raw": 0.0,
+        "explanation": "Inpainting scan skipped: No module named 'pywt'"
+      },
+      "forensic_judge": {
+        "name": "Forensic Judge & Meta-Consensus Engine",
+        "score": 1.9,
+        "max": 100,
+        "raw": 0.01914,
+        "explanation": "• <b>Judicial Consensus: Verified Authentic Camera Capture</b> (98.1% authenticity).<br>• Consistent natural camera sensor noise distribution across all spatial quadrants.<br>• Organic 2D Fourier energy decay, natural facial geometry, and absence of generative diffusion artifacts."
+      }
+    }
+  }
+}

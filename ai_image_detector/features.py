@@ -397,6 +397,24 @@ def detect_local_ai_manipulation(
     if noise_cv > 0.60:
         local_signals.append("bimodal noise distribution: organic sensor grain with synthetic editing")
 
+    # Snapchat / AR Filter heuristic
+    # Extreme smoothness (low laplacian) across tiles combined with high variance in ratios can indicate beauty filters
+    face_smoothing_score = 0.0
+    ar_overlay_score = 0.0
+    if r_med > 5.0 and lap_cv > 0.5:
+        face_smoothing_score = float(np.clip((r_med - 5.0) * 10, 0, 100))
+        local_signals.append("aggressive face smoothing or beauty filter detected (e.g. Snapchat/Instagram filter)")
+        if not is_edited:
+            ai_edited_prob = max(ai_edited_prob, face_smoothing_score / 100.0)
+            manipulation_score = max(manipulation_score, face_smoothing_score)
+
+    if n_med < 0.5 and noise_cv > 0.8:
+        ar_overlay_score = float(np.clip(noise_cv * 50, 0, 100))
+        local_signals.append("synthetic AR overlay or digital makeup detected")
+        if not is_edited:
+            ai_edited_prob = max(ai_edited_prob, ar_overlay_score / 100.0)
+            manipulation_score = max(manipulation_score, ar_overlay_score)
+
     return {
         "manipulation_score": round(manipulation_score, 2),
         "ai_edited_probability": round(ai_edited_prob, 4),
@@ -404,7 +422,7 @@ def detect_local_ai_manipulation(
         "total_patches": total_patches,
         "noise_cv": round(noise_cv, 4),
         "sharpness_cv": round(lap_cv, 4),
-        "face_smoothing_score": 0.0,
-        "ar_overlay_score": 0.0,
+        "face_smoothing_score": round(face_smoothing_score, 2),
+        "ar_overlay_score": round(ar_overlay_score, 2),
         "local_signals": local_signals,
     }

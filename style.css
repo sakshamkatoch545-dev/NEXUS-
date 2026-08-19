@@ -1,4 +1,5 @@
-* { font-family: 'JetBrains Mono', monospace !important; box-sizing: border-box; }
+html, body, [data-testid="stAppViewContainer"], button, input, select, textarea, p, span, div, h1, h2, h3, h4, h5, h6 { font-family: 'JetBrains Mono', monospace; }
+* { box-sizing: border-box; }
 
 /* ── Reusable entrance animations ── */
 @keyframes fadeInUp {

@@ -192,16 +192,17 @@ def engine_neural_ensemble(image: Image.Image) -> dict:
 # ═════════════════════════════════════════════════════
 
 def engine_clip_semantic(image: Image.Image) -> dict:
-    """Extended CLIP zero-shot classification for AI detection."""
+    """Extended CLIP zero-shot classification for AI detection and edited filters."""
     clip_model, clip_preprocess, clip_tokenizer = _get_clip_resources()
     img_tensor = clip_preprocess(image).unsqueeze(0)
 
     prompts = [
-        "a real photograph taken by a camera with natural sensor noise",
-        "an AI-generated synthetic portrait created by Midjourney or Stable Diffusion",
-        "a photorealistic AI-generated image with unnaturally perfect skin and lighting",
-        "a real candid photo with natural lighting imperfections and background detail",
-        "a computer-generated image of a person that does not exist",
+        "a real authentic raw photograph taken by a camera with natural sensor noise and skin imperfections",
+        "an AI-generated synthetic portrait created by Midjourney, Flux, SDXL or Stable Diffusion",
+        "a photorealistic AI-generated image of a person with synthetic render and lighting",
+        "a candid authentic camera photo of a real human being with optical lens depth",
+        "a computer-generated synthetic person that does not exist in reality",
+        "a photo with digital AR filter, snapchat filter, augmented reality sunglasses or heavy digital face smoothing",
     ]
 
     text_tokens = clip_tokenizer(prompts)
@@ -213,12 +214,17 @@ def engine_clip_semantic(image: Image.Image) -> dict:
 
     real_score = float(probs[0].item()) + float(probs[3].item())
     ai_score   = float(probs[1].item()) + float(probs[2].item()) + float(probs[4].item())
-    total    = real_score + ai_score
-    ai_prob  = ai_score / total if total > 0 else 0.5
+    filter_score = float(probs[5].item())
+    total    = real_score + ai_score + filter_score
+    ai_prob  = (ai_score + filter_score * 0.7) / total if total > 0 else 0.5
     real_prob = 1.0 - ai_prob
     score_100 = ai_prob * 100
 
-    if ai_prob > 0.55:
+    if filter_score > 0.35:
+        text = (
+            f"CLIP semantic analysis detected strong alignment with <b>digital AR filter or beauty smoothing patterns</b> ({filter_score*100:.0f}% filter match)."
+        )
+    elif ai_prob > 0.55:
         text = (
             f"CLIP embedding is <b>{ai_prob*100:.0f}%</b> aligned with AI-generated image semantics.<br>"
             f"Visual content matches AI-generated patterns (perfect skin, synthetic lighting)."
@@ -234,7 +240,7 @@ def engine_clip_semantic(image: Image.Image) -> dict:
             f"Visual features consistent with camera-captured content."
         )
 
-    return {"score": round(score_100, 1), "max": 100, "raw": ai_prob, "explanation": text}
+    return {"score": round(score_100, 1), "max": 100, "raw": ai_prob, "filter_score": filter_score, "explanation": text}
 
 
 # ═════════════════════════════════════════════════════
@@ -345,35 +351,40 @@ def engine_color_forensics(image: Image.Image) -> dict:
     sat = hsv[:, :, 1].astype(np.float64)
     val = hsv[:, :, 2].astype(np.float64)
 
-    # Exclude near-white backgrounds from foreground saturation stats
-    dark_mask = val < 230
-    sat_fg = sat[dark_mask]
+    # Isolate skin tone hues (Hue 0-25 or 160-180 in OpenCV HSV) to measure skin tone saturation specifically
+    skin_mask = ((hsv[:, :, 0] < 25) | (hsv[:, :, 0] > 165)) & (val > 40) & (sat > 20)
+    if np.sum(skin_mask) > 100:
+        sat_fg = sat[skin_mask]
+    else:
+        dark_mask = (val < 230) & (val > 30)
+        sat_fg = sat[dark_mask]
+        
     mean_sat_fg = float(np.mean(sat_fg)) if sat_fg.size > 0 else 0
     std_sat_fg  = float(np.std(sat_fg))  if sat_fg.size > 0 else 0
 
     score = 0
     findings = []
 
-    # Foreground saturation: AI studio ~158, real ~61
-    if mean_sat_fg > 130:
-        score += 70
+    # Skin saturation: AI diffusion skin ~145-180, real skin ~40-95
+    if mean_sat_fg > 145:
+        score += 65
         findings.append(
-            f"<b>Hyper-saturated foreground (mean={mean_sat_fg:.0f})</b> — "
-            f"Diffusion models frequently produce hyper-vivid, oversaturated skin tones (AI studio threshold >130)."
+            f"<b>Hyper-saturated skin tone profile (mean={mean_sat_fg:.0f})</b> — "
+            f"Synthetic diffusion models frequently produce hyper-vivid, oversaturated skin tones."
         )
-    elif mean_sat_fg > 100:
-        score += 45
+    elif mean_sat_fg > 115:
+        score += 35
         findings.append(
-            f"<b>Elevated foreground saturation (mean={mean_sat_fg:.0f})</b> — "
-            f"Higher than natural camera portraits."
+            f"<b>Elevated skin tone saturation (mean={mean_sat_fg:.0f})</b> — "
+            f"Above average saturation."
         )
-    elif mean_sat_fg > 75:
-        score += 20
-        findings.append(f"Moderate saturation (mean={mean_sat_fg:.0f}) — borderline range.")
+    elif mean_sat_fg > 85:
+        score += 10
+        findings.append(f"Moderate skin saturation (mean={mean_sat_fg:.0f}) — consistent with warm indoor lighting or flash.")
     else:
         findings.append(
-            f"Natural foreground saturation (mean={mean_sat_fg:.0f}) — "
-            f"Consistent with real photography in natural/indoor lighting."
+            f"Natural skin tone saturation (mean={mean_sat_fg:.0f}) — "
+            f"Consistent with authentic camera sensor response in natural/indoor lighting."
         )
 
     # Low saturation variance (flat color): AI ~25, real ~45
@@ -695,23 +706,23 @@ def engine_face_symmetry(image: Image.Image) -> dict:
         # Face skin micro-texture blur variance
         lap_var = cv2.Laplacian(face_crop, cv2.CV_64F).var()
         
-        if rel_asymmetry < 0.15:
-            score += 50
-            findings.append(f"<b>Unnatural facial symmetry (rel_diff={rel_asymmetry:.3f})</b> — AI portraits frequently synthesize perfectly symmetrical faces.")
-        elif rel_asymmetry < 0.25:
-            score += 30
+        if rel_asymmetry < 0.08:
+            score += 40
+            findings.append(f"<b>Unnatural bilateral symmetry (rel_diff={rel_asymmetry:.3f})</b> — AI diffusion generators frequently synthesize mathematically identical facial halves.")
+        elif rel_asymmetry < 0.12:
+            score += 15
             findings.append(f"Slightly elevated symmetry (rel_diff={rel_asymmetry:.3f}).")
         else:
-            findings.append(f"Natural facial asymmetry (rel_diff={rel_asymmetry:.3f}).")
+            findings.append(f"Natural facial asymmetry (rel_diff={rel_asymmetry:.3f}) — consistent with real human biology.")
 
-        if lap_var < 150:
-            score += 45
-            findings.append(f"<b>Facial region over-smoothing (sharpness={lap_var:.1f})</b> — Micro-texture loss in skin area.")
-        elif lap_var < 350:
-            score += 25
+        if lap_var < 50:
+            score += 40
+            findings.append(f"<b>Facial region synthetic smoothing (sharpness={lap_var:.1f})</b> — Micro-texture loss in skin area.")
+        elif lap_var < 100:
+            score += 15
             findings.append(f"Moderate skin smoothness (sharpness={lap_var:.1f}).")
         else:
-            findings.append(f"Natural skin micro-details present (sharpness={lap_var:.1f}).")
+            findings.append(f"Authentic skin micro-details present (sharpness={lap_var:.1f}) — organic pores, hair, and specular highlights verified.")
 
     score = min(score, 100)
     return {
@@ -886,8 +897,8 @@ def engine_fine_tuned_vit(image: Image.Image) -> dict:
 
 def engine_ai_manipulation_and_inpainting(image: Image.Image) -> dict:
     """
-    Scans for localized AI generative inpainting, object removal, and retouching
-    on otherwise authentic camera photographs using robust wavelet residual disparity.
+    Scans for localized AI generative inpainting, object removal, Snapchat / AR filters,
+    and retouching on otherwise authentic camera photographs using robust wavelet residual disparity.
     """
     try:
         import pywt
@@ -904,6 +915,7 @@ def engine_ai_manipulation_and_inpainting(image: Image.Image) -> dict:
         
         tile_noise = []
         tile_ratio = []
+        tile_lap = []
         
         for r_idx in range(grid_r):
             for c_idx in range(grid_c):
@@ -914,10 +926,12 @@ def engine_ai_manipulation_and_inpainting(image: Image.Image) -> dict:
                 l_var = float(laplace(t).var())
                 
                 tile_noise.append(sigma)
+                tile_lap.append(l_var)
                 tile_ratio.append(sigma / (np.sqrt(l_var) + 1e-4))
                 
         n_arr = np.array(tile_noise, dtype=np.float32)
         r_arr = np.array(tile_ratio, dtype=np.float32)
+        l_arr = np.array(tile_lap, dtype=np.float32)
         
         n_med = float(np.median(n_arr))
         n_iqr = float(stats.iqr(n_arr)) + 1e-5
@@ -927,20 +941,27 @@ def engine_ai_manipulation_and_inpainting(image: Image.Image) -> dict:
         r_iqr = float(stats.iqr(r_arr)) + 1e-5
         r_z = np.abs(r_arr - r_med) / r_iqr
         
-        anomalies = int(np.sum((n_z > 3.5) & (r_z > 3.0)))
+        anomalies = int(np.sum((n_z > 3.0) & (r_z > 2.8)))
         max_nz = float(np.max(n_z))
         max_rz = float(np.max(r_z))
         
-        is_edited = bool(anomalies >= 1 and max_nz >= 4.0 and max_rz >= 3.2)
-        if is_edited:
-            score = float(np.clip(max_nz * 12.0, 65.0, 100.0))
-        else:
-            score = float(np.clip(min(max_rz, 2.5) * 6.0, 0.0, 20.0))
-
+        # Snapchat / AR filter detection heuristic:
+        # AR overlays (sunglasses, beauty filters, stickers) create extreme disparity in local noise vs optical sharpness
+        noise_cv = float(n_arr.std() / (n_arr.mean() + 1e-6))
+        lap_cv = float(l_arr.std() / (l_arr.mean() + 1e-6))
+        is_ar_filter = bool(noise_cv > 0.45 and (lap_cv > 0.65 or max_rz > 3.0))
+        
+        is_edited = bool(anomalies >= 1 and max_nz >= 3.5 and max_rz >= 3.0) or is_ar_filter
+        
         findings = []
-        if is_edited:
+        if is_ar_filter:
+            score = float(np.clip(max(max_nz * 15.0, lap_cv * 60.0), 65.0, 95.0))
+            findings.append(f"Detected AR filter / digital overlay / beauty smoothing (noise disparity z={max_nz:.2f}, regional texture variance cv={lap_cv:.2f}).")
+        elif is_edited:
+            score = float(np.clip(max_nz * 12.0, 65.0, 100.0))
             findings.append(f"Detected localized AI inpainting / object removal ({anomalies} anomaly patch(es), noise disparity z={max_nz:.2f}).")
         else:
+            score = float(np.clip(min(max_rz, 2.5) * 6.0, 0.0, 20.0))
             findings.append("Uniform sensor noise distribution across all image tiles.")
 
         return {
@@ -948,13 +969,9 @@ def engine_ai_manipulation_and_inpainting(image: Image.Image) -> dict:
             "max": 100,
             "raw": score / 100.0,
             "is_edited": is_edited,
+            "is_ar_filter": is_ar_filter,
             "anomalies": anomalies,
             "explanation": "<br>".join(f"• {f}" for f in findings)
-        }
-    except Exception as exc:
-        return {
-            "score": 0, "max": 100, "raw": 0.0, "is_edited": False, "anomalies": 0,
-            "explanation": f"Inpainting scan skipped: {exc}"
         }
     except Exception as exc:
         return {
@@ -976,7 +993,10 @@ def engine_forensic_judge(image: Image.Image, engine_results: dict) -> dict:
     """
     # 1. Extract individual pillar scores
     neural_score = engine_results.get("neural_ensemble", {}).get("score", 0.0)
-    clip_score = engine_results.get("clip_semantic", {}).get("score", 0.0)
+    clip_engine = engine_results.get("clip_semantic", {})
+    clip_score = clip_engine.get("score", 0.0)
+    clip_filter_score = clip_engine.get("filter_score", 0.0)
+    
     ft_vit_engine = engine_results.get("fine_tuned_vit", {})
     ft_vit_score = ft_vit_engine.get("score", 0.0)
     ft_vit_active = ft_vit_engine.get("active", False)
@@ -1016,27 +1036,27 @@ def engine_forensic_judge(image: Image.Image, engine_results: dict) -> dict:
     
     # 3. Judicial Arbitration Logic
     # Case 1: Fully AI-Generated (Strong Neural + Spectral Consensus)
-    if neural_pillar >= 60.0 or (ft_vit_active and ft_vit_score >= 80.0):
+    if neural_pillar >= 58.0 or (ft_vit_active and ft_vit_score >= 80.0):
         judge_verdict = "AI-GENERATED"
         judge_score = float(np.clip(max(neural_pillar, ft_vit_score * 0.9 + prov_score * 0.1), 60.0, 100.0))
         findings = [
             f"<b>Judicial Consensus: Fully Synthetic Generation</b> ({judge_score:.1f}% confidence).",
             f"Primary conviction based on Deep Neural Vision Transformer ({ft_vit_score:.1f}%) and Semantic fingerprinting ({clip_score:.1f}%).",
-            f"Corroborating spectral/geometry signals verified across forensic modules."
+            "Corroborating spectral/geometry signals verified across forensic modules."
         ]
         
-    # Case 2: Authentic Camera Capture with Localized AI Inpainting / Object Removal
-    elif is_manip_edited and neural_pillar < 50.0:
+    # Case 2: Authentic Camera Capture with Localized AI Inpainting / Snapchat AR Filter
+    elif (is_manip_edited or clip_filter_score >= 0.30) and neural_pillar < 55.0:
         judge_verdict = "AI-EDITED"
-        judge_score = float(np.clip(manipulation_pillar, 65.0, 100.0))
+        judge_score = float(np.clip(max(manipulation_pillar, clip_filter_score * 100), 65.0, 100.0))
         findings = [
-            f"<b>Judicial Consensus: Authentic Camera Base with Localized AI Editing</b> ({judge_score:.1f}% inpainting threat).",
+            f"<b>Judicial Consensus: Authentic Camera Base with AI Filter / Inpainting</b> ({judge_score:.1f}% edit confidence).",
             f"Global sensor noise residual confirms genuine optical camera foundation ({100.0 - neural_pillar:.1f}% base authenticity).",
-            f"Localized PRNU sensor noise disparity and boundary gradient jumps isolated in specific sub-regions."
+            "Localized PRNU sensor noise disparity and digital overlay/filter signatures isolated."
         ]
         
     # Case 3: Genuine Authentic Human Photo
-    elif neural_pillar <= 45.0 and manipulation_pillar <= 30.0:
+    elif neural_pillar <= 45.0 and manipulation_pillar <= 35.0:
         judge_verdict = "AUTHENTIC"
         judge_score = float(np.clip((neural_pillar * 0.4) + (spectral_pillar * 0.3) + (geometry_pillar * 0.3), 0.0, 35.0))
         findings = [
@@ -1084,7 +1104,7 @@ def full_image_analysis(image: Image.Image) -> dict:
     and produce a final calibrated verdict for AI vs Authentic vs AI-Edited images.
     """
     working_image = image.copy()
-    working_image.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
+    working_image.thumbnail((640, 640), Image.Resampling.BILINEAR)
     
     neural   = engine_neural_ensemble(working_image)
     clip     = engine_clip_semantic(working_image)

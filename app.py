@@ -11,10 +11,15 @@ from io import BytesIO
 import streamlit as st
 from PIL import Image
 
-import importlib
+import sys
+import os
+import base64
+from io import BytesIO
+
+import streamlit as st
+from PIL import Image
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-import src.detector
-importlib.reload(src.detector)
 from src.detector import full_image_analysis  # noqa: E402
 
 st.set_page_config(
@@ -36,9 +41,9 @@ ACCENT_EMERALD = "#10b981"
 SUCCESS = "#10b981"
 DANGER = "#ef4444"
 WARNING = "#f59e0b"
-GLASS = "rgba(15, 23, 42, 0.65)"
+GLASS = "rgba(15, 23, 42, 0.75)"
 GLASS_BORDER = "rgba(217, 70, 239, 0.25)"
-GLASS_BLUR = "blur(24px) saturate(160%)"
+GLASS_BLUR = "blur(12px)"
 GLOW = "rgba(217, 70, 239, 0.35)"
 MUTED = "#cbd5e1"
 SURFACE = "#111827"
@@ -56,14 +61,15 @@ _BASE = os.path.dirname(os.path.abspath(__file__))
 
 def _image_to_b64(img: Image.Image, fmt: str = "JPEG") -> str:
     buf = BytesIO()
-    # Downscale for preview to avoid massive base64 strings and memory lag
+    # Fast lightweight preview thumbnail to eliminate DOM lag
     working_img = img.copy()
-    working_img.thumbnail((1200, 1200), Image.Resampling.BILINEAR)
+    working_img.thumbnail((600, 600), Image.Resampling.BILINEAR)
     if working_img.mode != "RGB":
         working_img = working_img.convert("RGB")
-    working_img.save(buf, format=fmt, quality=85)
+    working_img.save(buf, format=fmt, quality=75, optimize=True)
     return base64.b64encode(buf.getvalue()).decode("utf-8")
 
+@st.cache_data(show_spinner=False)
 def _read_css_files():
     with open(os.path.join(_BASE, "style.css"), encoding="utf-8") as f:
         css_content = f.read()
@@ -163,25 +169,7 @@ button[kind="primary"] p, [data-testid="stBaseButton-primary"] p {{
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown(
-    """
-    <div class="glass-bg" aria-hidden="true">
-        <div class="glass-orb glass-orb-1"></div>
-        <div class="glass-orb glass-orb-2"></div>
-        <div class="glass-orb glass-orb-3"></div>
-        <div class="glass-orb glass-orb-4"></div>
-        <div class="natural-light natural-light-main"></div>
-        <div class="natural-light natural-light-fill"></div>
-        <div class="color-tint color-tint-violet"></div>
-        <div class="color-tint color-tint-magenta"></div>
-        <div class="color-tint color-tint-cyan"></div>
-        <div class="color-tint color-tint-amber"></div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-st.markdown('<div class="noise-overlay"></div>', unsafe_allow_html=True)
-st.markdown('<div class="light-shade" aria-hidden="true"></div>', unsafe_allow_html=True)
+st.markdown('<div class="glass-bg-optimized" aria-hidden="true"></div>', unsafe_allow_html=True)
 
 
 # ──────────────────────────────────────────────
