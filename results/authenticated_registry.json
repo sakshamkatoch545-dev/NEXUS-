@@ -1,15 +1,15 @@
 {
   "769da160a303ac829b77d63b38ea4a63ec782d8dc4612bd9415dc11c23c96fa8": {
     "sha256": "769da160a303ac829b77d63b38ea4a63ec782d8dc4612bd9415dc11c23c96fa8",
-    "filename": "media_1787147247627.jpg",
+    "filename": "media_1787148969445.jpg",
     "dataset_path": "data\\dataset\\real\\feedback_real_769da160a303.jpg",
     "label": "real",
     "status": "LOCKED_IMMUTABLE",
-    "registered_at": "2026-08-19 14:09:40 UTC",
+    "registered_at": "2026-08-19 14:23:35 UTC",
     "verdict": "AUTHENTIC",
     "verdict_label": "✅ AUTHENTIC",
-    "human_score": 97.4,
-    "ai_score": 2.6,
+    "human_score": 97.0,
+    "ai_score": 3.0,
     "judge_verdict": "AUTHENTIC",
     "judge_score": 1.9,
     "judge_pillars": {
@@ -17,7 +17,7 @@
       "spectral": 5.4,
       "compression": 21.0,
       "geometry": 0.0,
-      "inpainting": 0
+      "inpainting": 10.0
     },
     "engines": {
       "neural_ensemble": {
@@ -106,10 +106,10 @@
       },
       "ai_manipulation": {
         "name": "AI Inpainting & Retouch Forensics",
-        "score": 0,
+        "score": 10.0,
         "max": 100,
-        "raw": 0.0,
-        "explanation": "Inpainting scan skipped: No module named 'pywt'"
+        "raw": 0.1,
+        "explanation": "• Uniform sensor noise distribution across all image tiles."
       },
       "forensic_judge": {
         "name": "Forensic Judge & Meta-Consensus Engine",

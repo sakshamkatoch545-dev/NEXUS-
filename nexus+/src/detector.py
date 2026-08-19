@@ -908,7 +908,11 @@ def engine_ai_manipulation_and_inpainting(image: Image.Image) -> dict:
     and retouching on otherwise authentic camera photographs using robust wavelet residual disparity.
     """
     try:
-        import pywt
+        try:
+            import pywt
+            has_pywt = True
+        except ImportError:
+            has_pywt = False
         from scipy.ndimage import laplace
         import scipy.stats as stats
         
@@ -927,9 +931,15 @@ def engine_ai_manipulation_and_inpainting(image: Image.Image) -> dict:
         for r_idx in range(grid_r):
             for c_idx in range(grid_c):
                 t = gray[r_idx*th:(r_idx+1)*th, c_idx*tw:(c_idx+1)*tw]
-                coeffs = pywt.dwt2(t, 'db4')
-                _, (_, _, hh) = coeffs
-                sigma = float(np.median(np.abs(hh)) / 0.6745)
+                if has_pywt:
+                    coeffs = pywt.dwt2(t, 'db4')
+                    _, (_, _, hh) = coeffs
+                    sigma = float(np.median(np.abs(hh)) / 0.6745)
+                else:
+                    k = np.array([[1, -2, 1], [-2, 4, -2], [1, -2, 1]], dtype=np.float32)
+                    res = cv2.filter2D(t, -1, k)
+                    sigma = float(np.sum(np.abs(res)) * np.sqrt(0.5 * np.pi) / (6.0 * max(1, (th - 2) * (tw - 2))))
+                
                 l_var = float(laplace(t).var())
                 
                 tile_noise.append(sigma)
@@ -946,29 +956,26 @@ def engine_ai_manipulation_and_inpainting(image: Image.Image) -> dict:
         
         r_med = float(np.median(r_arr))
         r_iqr = float(stats.iqr(r_arr)) + 1e-5
-        r_z = np.abs(r_arr - r_med) / r_iqr
+        r_z = np.abs(r_arr - r_med) / n_iqr
         
-        anomalies = int(np.sum((n_z > 3.0) & (r_z > 2.8)))
+        anomalies = int(np.sum((n_z > 3.8) & (r_z > 3.5)))
         max_nz = float(np.max(n_z))
         max_rz = float(np.max(r_z))
         
-        # Snapchat / AR filter detection heuristic:
-        # AR overlays (sunglasses, beauty filters, stickers) create extreme disparity in local noise vs optical sharpness
         noise_cv = float(n_arr.std() / (n_arr.mean() + 1e-6))
         lap_cv = float(l_arr.std() / (l_arr.mean() + 1e-6))
-        is_ar_filter = bool(noise_cv > 0.45 and (lap_cv > 0.65 or max_rz > 3.0))
-        
-        is_edited = bool(anomalies >= 1 and max_nz >= 3.5 and max_rz >= 3.0) or is_ar_filter
+        is_ar_filter = bool(anomalies >= 2 and noise_cv > 0.65 and lap_cv > 0.85 and max_rz > 3.8)
+        is_edited = bool(anomalies >= 2 and max_nz >= 4.0 and max_rz >= 3.5) or is_ar_filter
         
         findings = []
         if is_ar_filter:
             score = float(np.clip(max(max_nz * 15.0, lap_cv * 60.0), 65.0, 95.0))
-            findings.append(f"Detected AR filter / digital overlay / beauty smoothing (noise disparity z={max_nz:.2f}, regional texture variance cv={lap_cv:.2f}).")
+            findings.append(f"Detected AR filter / digital overlay / beauty smoothing (noise disparity z={max_nz:.2f}).")
         elif is_edited:
             score = float(np.clip(max_nz * 12.0, 65.0, 100.0))
             findings.append(f"Detected localized AI inpainting / object removal ({anomalies} anomaly patch(es), noise disparity z={max_nz:.2f}).")
         else:
-            score = float(np.clip(min(max_rz, 2.5) * 6.0, 0.0, 20.0))
+            score = float(np.clip(min(max_rz, 2.5) * 4.0, 0.0, 15.0))
             findings.append("Uniform sensor noise distribution across all image tiles.")
 
         return {
@@ -1245,13 +1252,16 @@ def full_image_analysis(image: Image.Image) -> dict:
     judge_decision = judge.get("verdict", "UNCERTAIN")
 
     # 14-Engine + Judge Consensus Verdict:
-    if judge_decision == "AI-GENERATED" or ai_conf >= 0.55:
+    if judge_decision == "AUTHENTIC" or (human_conf >= 0.52 and judge_decision != "AI-GENERATED"):
+        verdict       = "AUTHENTIC"
+        verdict_label = "✅ AUTHENTIC"
+    elif judge_decision == "AI-GENERATED" or ai_conf >= 0.55:
         verdict       = "AI-GENERATED"
         verdict_label = "🚨 AI-GENERATED"
-    elif judge_decision == "AI-EDITED" or (is_edited_flag and ai_conf <= 0.50):
+    elif judge_decision == "AI-EDITED" and is_edited_flag:
         verdict       = "AI-EDITED"
         verdict_label = "🪄 LIKELY REAL BUT EDITED BY AI"
-    elif judge_decision == "AUTHENTIC" or human_conf >= 0.50:
+    elif human_conf >= 0.45:
         verdict       = "AUTHENTIC"
         verdict_label = "✅ AUTHENTIC"
     else:
