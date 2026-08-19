@@ -1273,7 +1273,7 @@ def full_image_analysis(image: Image.Image) -> dict:
         "verdict_label":    verdict_label,
         "confidence_score": round(ai_conf * 100, 1),
         "human_score":      round(human_conf * 100, 1),
-        "is_ai_edited":     is_edited_flag or verdict == "AI-EDITED",
+        "is_ai_edited":     verdict == "AI-EDITED",
         "ai_edited_score":  round(float(manipulation.get("score", 0)), 1),
         "judge_verdict":    judge_decision,
         "judge_score":      judge.get("score", 0.0),

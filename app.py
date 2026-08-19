@@ -6,21 +6,19 @@ Cyber forensics UI (violet · cyan · dark glass)
 import sys
 import os
 import base64
-from io import BytesIO
-
-import streamlit as st
-from PIL import Image
-
-import sys
-import os
-import base64
+import importlib
 from io import BytesIO
 
 import streamlit as st
 from PIL import Image
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from src.detector import full_image_analysis  # noqa: E402
+try:
+    import src.detector
+    importlib.reload(src.detector)
+    from src.detector import full_image_analysis
+except Exception:
+    from src.detector import full_image_analysis
 
 st.set_page_config(
     page_title="NEXUS+ AI Detector",
@@ -896,7 +894,7 @@ elif st.session_state.page == "results":
 
     score   = result["confidence_score"]
     verdict = result["verdict"]
-    is_edited = result.get("is_ai_edited", False)
+    is_edited = bool(result.get("is_ai_edited", False) and verdict == "AI-EDITED")
     ai_edited_score = float(result.get("ai_edited_score", 0.0))
 
     if verdict == "AI-GENERATED":
