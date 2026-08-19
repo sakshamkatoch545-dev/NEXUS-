@@ -4,7 +4,10 @@ sys.path.append('.')
 from src.detector import full_image_analysis
 
 folder = r"C:\Users\saksh\.gemini\antigravity-ide\brain\87826ea9-0d35-4429-aeae-81ccc2c90e3a\.user_uploaded"
-images = sorted(glob.glob(os.path.join(folder, "*.jpg")))
+images = [
+    os.path.join(folder, "media_1787151088044.jpg"),
+    os.path.join(folder, "media_1787151093973.jpg"),
+]
 
 for img_path in images:
     img = Image.open(img_path).convert('RGB')
