@@ -5,11 +5,11 @@
     "dataset_path": "data\\dataset\\real\\feedback_real_769da160a303.jpg",
     "label": "real",
     "status": "LOCKED_IMMUTABLE",
-    "registered_at": "2026-08-19 13:56:09 UTC",
+    "registered_at": "2026-08-19 14:09:40 UTC",
     "verdict": "AUTHENTIC",
     "verdict_label": "✅ AUTHENTIC",
-    "human_score": 95.5,
-    "ai_score": 4.5,
+    "human_score": 97.4,
+    "ai_score": 2.6,
     "judge_verdict": "AUTHENTIC",
     "judge_score": 1.9,
     "judge_pillars": {
@@ -99,10 +99,10 @@
       },
       "ai_provenance": {
         "name": "AI & Generator Provenance Engine",
-        "score": 52.7,
+        "score": 7.6,
         "max": 100,
-        "raw": 0.526980671286583,
-        "explanation": "• No camera EXIF metadata (weak signal; social apps often remove it)<br>• Semantic generator-family compatibility is probabilistic, not provider attribution"
+        "raw": 0.07631690740585327,
+        "explanation": "• Semantic feature profile matches authentic camera optical capture"
       },
       "ai_manipulation": {
         "name": "AI Inpainting & Retouch Forensics",

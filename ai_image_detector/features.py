@@ -19,6 +19,7 @@ import logging
 from dataclasses import dataclass, fields
 from typing import Optional
 
+import cv2
 import numpy as np
 from scipy import fftpack, stats
 from scipy.ndimage import laplace, sobel
@@ -334,14 +335,18 @@ def detect_local_ai_manipulation(
     Extract localized inpainting, editing, and manipulation forensic features.
     Uses robust multi-tile wavelet noise estimation and normalized noise-to-texture ratios.
     """
-    import pywt
+    try:
+        import pywt
+        has_pywt = True
+    except ImportError:
+        has_pywt = False
     from scipy.ndimage import laplace
     import scipy.stats as stats
 
-    h, w, _ = image_np.shape
-    r = image_np[..., 0].astype(np.float32)
-    g = image_np[..., 1].astype(np.float32)
-    b = image_np[..., 2].astype(np.float32)
+    h, w, _ = rgb.shape
+    r = rgb[..., 0].astype(np.float32)
+    g = rgb[..., 1].astype(np.float32)
+    b = rgb[..., 2].astype(np.float32)
     gray = 0.299 * r + 0.587 * g + 0.114 * b
 
     rows, cols = grid_size
@@ -356,9 +361,16 @@ def detect_local_ai_manipulation(
             x0, x1 = c_idx * tile_w, (c_idx + 1) * tile_w
             tile_gray = gray[y0:y1, x0:x1]
 
-            coeffs = pywt.dwt2(tile_gray, 'db4')
-            _, (_, _, hh) = coeffs
-            sigma = float(np.median(np.abs(hh)) / 0.6745)
+            if has_pywt:
+                coeffs = pywt.dwt2(tile_gray, 'db4')
+                _, (_, _, hh) = coeffs
+                sigma = float(np.median(np.abs(hh)) / 0.6745)
+            else:
+                # Fast robust spatial high-pass noise estimation (Donohue / Immerkaer algorithm)
+                k = np.array([[1, -2, 1], [-2, 4, -2], [1, -2, 1]], dtype=np.float32)
+                res = cv2.filter2D(tile_gray, -1, k)
+                sigma = float(np.sum(np.abs(res)) * np.sqrt(0.5 * np.pi) / (6.0 * max(1, (tile_h - 2) * (tile_w - 2))))
+            
             l_var = float(laplace(tile_gray).var())
 
             tile_noise.append(sigma)
