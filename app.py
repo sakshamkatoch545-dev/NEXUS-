@@ -31,6 +31,7 @@ try:
         logout_user,
         get_google_auth_url,
         exchange_google_code,
+        verify_google_id_token,
         verify_credentials,
         login_demo_google_user,
         try_restore_session_from_token,
@@ -51,6 +52,7 @@ except ImportError:
         logout_user,
         get_google_auth_url,
         exchange_google_code,
+        verify_google_id_token,
         verify_credentials,
         login_demo_google_user,
         try_restore_session_from_token,
@@ -94,6 +96,15 @@ if "code" in st.query_params:
                 "auth_type": "google",
                 "avatar": user_info.get("picture", ""),
             }, remember_30_days=True)
+            st.query_params.clear()
+            st.rerun()
+
+if "id_token" in st.query_params:
+    id_tok = st.query_params.get("id_token")
+    if id_tok:
+        user_info = verify_google_id_token(id_tok)
+        if user_info:
+            login_user(user_info, remember_30_days=True)
             st.query_params.clear()
             st.rerun()
 

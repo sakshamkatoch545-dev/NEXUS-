@@ -135,6 +135,27 @@ def exchange_google_code(code: str) -> dict | None:
         return None
 
 
+def verify_google_id_token(id_token_str: str) -> dict | None:
+    """Verify a Google ID Token (from Google Identity Services) via Google's tokeninfo API."""
+    if not id_token_str:
+        return None
+    try:
+        url = f"https://oauth2.googleapis.com/tokeninfo?id_token={id_token_str}"
+        res = requests.get(url, timeout=10)
+        if res.status_code == 200:
+            data = res.json()
+            return {
+                "name": data.get("name", "Google User"),
+                "email": data.get("email", ""),
+                "avatar": data.get("picture", ""),
+                "role": "GOOGLE 2-STEP VERIFIED",
+                "auth_type": "google",
+            }
+    except Exception as e:
+        st.error(f"Google ID Token verification failed: {e}")
+    return None
+
+
 def init_auth_state():
     """Ensure session state variables for authentication exist."""
     if "authenticated" not in st.session_state:
