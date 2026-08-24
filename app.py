@@ -769,7 +769,9 @@ def _render_login_page():
 
     _, mid_l, _ = st.columns([1, 1.7, 1])
     with mid_l:
+        cfg = _load_auth_config()
         g_url = get_google_auth_url()
+
         if g_url:
             st.markdown(f'''
             <a href="{g_url}" target="_self" class="google-auth-btn">
@@ -783,9 +785,27 @@ def _render_login_page():
             </a>
             ''', unsafe_allow_html=True)
         else:
-            if st.button("Sign in with Google (Sandbox 2-Step OAuth)", type="primary", use_container_width=True):
-                login_demo_google_user(remember_30_days=True)
-                st.rerun()
+            # Render button that prompts for Client ID if not configured
+            login_clicked = st.button("Sign in with Google (2-Step Verification)", type="primary", use_container_width=True)
+            if login_clicked:
+                st.session_state.show_google_setup = True
+
+        if not g_url and st.session_state.get("show_google_setup", True):
+            _render_html("<div style='margin-top: 1rem;'></div>")
+            with st.container():
+                st.info("Enter your Google Cloud OAuth Client ID & Secret to activate live Google 2-Step Sign-In:")
+                c1, c2 = st.columns(2, gap="small")
+                with c1:
+                    c_id_in = st.text_input("Google Client ID:", value=cfg.get("client_id", ""), placeholder="xxxx.apps.googleusercontent.com")
+                with c2:
+                    c_sec_in = st.text_input("Google Client Secret:", value=cfg.get("client_secret", ""), type="password", placeholder="GOCSPX-xxxx")
+                if st.button("Activate Google 2-Step Login", type="primary", use_container_width=True):
+                    if c_id_in and c_sec_in:
+                        save_google_credentials(c_id_in, c_sec_in)
+                        st.success("Google OAuth 2.0 Activated! Refreshing...")
+                        st.rerun()
+                    else:
+                        st.warning("Please provide both Client ID and Client Secret.")
 
         _render_html("""
         <div class="auth-divider">
@@ -807,41 +827,22 @@ def _render_login_page():
                 else:
                     st.error("Invalid credentials. Please enter a valid email and password.")
 
-        _render_html("<div style='margin-top: 1.4rem;'></div>")
-        c1, c2 = st.columns(2, gap="small")
-        with c1:
-            if st.button("Instant Analyst Login (30 Days)", use_container_width=True, type="secondary"):
-                login_user({
-                    "name": "Lead Forensic Analyst",
-                    "email": "analyst@nexus.forensics",
-                    "role": "TIER-1 INVESTIGATOR",
-                    "auth_type": "analyst",
-                }, remember_30_days=True)
-                st.rerun()
-        with c2:
-            if st.button("Instant Google 2FA (30 Days)", use_container_width=True, type="secondary"):
-                login_demo_google_user(remember_30_days=True)
-                st.rerun()
-
-        _render_html("<div style='margin-top: 1.8rem;'></div>")
-        with st.expander("Google Cloud OAuth 2.0 & 2-Step Configuration"):
-            cfg = _load_auth_config()
-            st.markdown(textwrap.dedent("""
-            **To connect your production Google Cloud Console Client:**
-            1. Go to [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
-            2. Create an **OAuth 2.0 Client ID** (Web application).
-            3. Set Authorized Redirect URI: `http://localhost:8501`.
-            4. Enter your Client ID and Client Secret below:
-            """))
-            c_id = st.text_input("Google Client ID:", value=cfg.get("client_id", ""), type="password")
-            c_sec = st.text_input("Google Client Secret:", value=cfg.get("client_secret", ""), type="password")
-            if st.button("Save & Activate Google OAuth", type="primary"):
-                if c_id and c_sec:
-                    save_google_credentials(c_id, c_sec)
-                    st.success("Google OAuth 2.0 Credentials saved and activated!")
-                    st.rerun()
-                else:
-                    st.warning("Please provide both Client ID and Client Secret.")
+        if g_url:
+            _render_html("<div style='margin-top: 1.5rem;'></div>")
+            with st.expander("Google Cloud OAuth Settings & Credentials"):
+                st.markdown(textwrap.dedent("""
+                **Connected Google Cloud Web Application:**
+                - Redirect URI: `http://localhost:8501`
+                - Scopes: `openid email profile`
+                - 2-Step Verification: Active
+                """))
+                c_id = st.text_input("Update Client ID:", value=cfg.get("client_id", ""), type="password")
+                c_sec = st.text_input("Update Client Secret:", value=cfg.get("client_secret", ""), type="password")
+                if st.button("Update Credentials", type="secondary"):
+                    if c_id and c_sec:
+                        save_google_credentials(c_id, c_sec)
+                        st.success("Credentials updated!")
+                        st.rerun()
 
 
 # ── SESSION AUTHENTICATION GATEKEEPER ──
