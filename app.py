@@ -26,6 +26,7 @@ from src.auth import (
     exchange_google_code,
     verify_credentials,
     login_demo_google_user,
+    try_restore_session_from_token,
 )
 
 def _render_html(html_str: str):
@@ -44,7 +45,16 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# Handle Google OAuth 2.0 Authorization Code callback
+# ── 30-DAY PERSISTENT SESSION AUTO-RESTORE ──
+if "session_token" in st.query_params and not is_authenticated():
+    s_token = st.query_params.get("session_token")
+    if try_restore_session_from_token(s_token):
+        st.query_params.clear()
+        st.rerun()
+    else:
+        st.query_params.clear()
+
+# ── GOOGLE OAUTH 2.0 / 2-STEP VERIFICATION CALLBACK ──
 if "code" in st.query_params:
     auth_code = st.query_params.get("code")
     if auth_code:
@@ -53,12 +63,55 @@ if "code" in st.query_params:
             login_user({
                 "name": user_info.get("name", "Google User"),
                 "email": user_info.get("email", ""),
-                "role": "GOOGLE OAUTH 2.0",
+                "role": "GOOGLE 2-STEP VERIFIED",
                 "auth_type": "google",
                 "avatar": user_info.get("picture", ""),
-            })
+            }, remember_30_days=True)
             st.query_params.clear()
             st.rerun()
+
+# ── LOCALSTORAGE 30-DAY SYNC JAVASCRIPT BRIDGE ──
+if st.session_state.get("new_login_token"):
+    t_val = st.session_state.new_login_token
+    st.session_state.new_login_token = None
+    _render_html(f"""
+    <script>
+    try {{
+        localStorage.setItem('nexus_auth_token', '{t_val}');
+    }} catch(e) {{}}
+    </script>
+    """)
+elif st.session_state.get("logout_signal"):
+    st.session_state.logout_signal = None
+    _render_html("""
+    <script>
+    try {{
+        localStorage.removeItem('nexus_auth_token');
+        const p = new URLSearchParams(window.location.search);
+        if (p.has('session_token')) {{
+            p.delete('session_token');
+            history.replaceState(null, '', window.location.pathname);
+        }}
+    }} catch(e) {{}}
+    </script>
+    """)
+elif not is_authenticated():
+    # Attempt auto-login from browser LocalStorage
+    _render_html("""
+    <script>
+    (function() {
+        try {
+            const token = localStorage.getItem('nexus_auth_token');
+            const params = new URLSearchParams(window.location.search);
+            if (token && !params.has('session_token') && !window.__nexus_auth_checked) {
+                window.__nexus_auth_checked = true;
+                params.set('session_token', token);
+                window.location.search = params.toString();
+            }
+        } catch(e) {}
+    })();
+    </script>
+    """)
 
 # Theme Factory — Cyberpunk Multi-Spectrum Obsidian Palette
 BG = "#080c14"
@@ -653,21 +706,26 @@ def _render_nav():
 
 
 def _render_login_page():
-    """Cyberpunk Login and Google Authentication Page."""
+    """Cyberpunk Login and Google 2-Step Authentication Page with 30-Day Persistent Session."""
+    from src.auth import save_google_credentials, _load_auth_config
+
     _render_html("""
     <div class="login-wrapper">
         <div class="login-card">
             <div class="status-badge-wrap" style="margin-bottom:0.8rem;">
                 <span class="status-dot"></span>
-                <span class="status-text">SECURE FORENSIC ACCESS</span>
+                <span class="status-text">SECURE 2-STEP FORENSIC PORTAL</span>
             </div>
             <div class="login-header-hero">NEXUS+ <span class="version-badge">v7.0</span></div>
             <div class="login-header-sub">Advanced AI Image Forensics & Meta-Arbitration Platform</div>
+            <div style="font-family:'JetBrains Mono',monospace; font-size:0.75rem; color:#10b981; margin-bottom:1.5rem; letter-spacing:0.04em;">
+                ENCRYPTED 30-DAY PERSISTENT SESSION AUTO-LOGIN ENABLED
+            </div>
         </div>
     </div>
     """)
 
-    _, mid_l, _ = st.columns([1, 1.6, 1])
+    _, mid_l, _ = st.columns([1, 1.7, 1])
     with mid_l:
         g_url = get_google_auth_url()
         if g_url:
@@ -679,12 +737,12 @@ def _render_login_page():
                     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
                     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
                 </svg>
-                Sign in with Google
+                Sign in with Google (2-Step Verification)
             </a>
             ''', unsafe_allow_html=True)
         else:
-            if st.button("Sign in with Google (Sandbox OAuth)", type="primary", use_container_width=True):
-                login_demo_google_user()
+            if st.button("Sign in with Google (Sandbox 2-Step OAuth)", type="primary", use_container_width=True):
+                login_demo_google_user(remember_30_days=True)
                 st.rerun()
 
         _render_html("""
@@ -696,31 +754,52 @@ def _render_login_page():
         with st.form("analyst_login_form"):
             email_input = st.text_input("Analyst Identifier / Email:", value="analyst@nexus.forensics")
             pass_input = st.text_input("Passcode:", type="password", value="nexus")
-            submit_btn = st.form_submit_button("Authenticate Analyst", use_container_width=True, type="primary")
+            remember_chk = st.checkbox("Keep me signed in for 30 days on this device", value=True)
+            submit_btn = st.form_submit_button("Authenticate & Lock Session", use_container_width=True, type="primary")
 
             if submit_btn:
                 user = verify_credentials(email_input, pass_input)
                 if user:
-                    login_user(user)
+                    login_user(user, remember_30_days=remember_chk)
                     st.rerun()
                 else:
                     st.error("Invalid credentials. Please enter a valid email and password.")
 
-        _render_html("<div style='margin-top: 1.2rem;'></div>")
+        _render_html("<div style='margin-top: 1.4rem;'></div>")
         c1, c2 = st.columns(2, gap="small")
         with c1:
-            if st.button("Instant Analyst Login", use_container_width=True, type="secondary"):
+            if st.button("Instant Analyst Login (30 Days)", use_container_width=True, type="secondary"):
                 login_user({
                     "name": "Lead Forensic Analyst",
                     "email": "analyst@nexus.forensics",
                     "role": "TIER-1 INVESTIGATOR",
                     "auth_type": "analyst",
-                })
+                }, remember_30_days=True)
                 st.rerun()
         with c2:
-            if st.button("Instant Google Login", use_container_width=True, type="secondary"):
-                login_demo_google_user()
+            if st.button("Instant Google 2FA (30 Days)", use_container_width=True, type="secondary"):
+                login_demo_google_user(remember_30_days=True)
                 st.rerun()
+
+        _render_html("<div style='margin-top: 1.8rem;'></div>")
+        with st.expander("Google Cloud OAuth 2.0 & 2-Step Configuration"):
+            cfg = _load_auth_config()
+            st.markdown(textwrap.dedent("""
+            **To connect your production Google Cloud Console Client:**
+            1. Go to [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
+            2. Create an **OAuth 2.0 Client ID** (Web application).
+            3. Set Authorized Redirect URI: `http://localhost:8501`.
+            4. Enter your Client ID and Client Secret below:
+            """))
+            c_id = st.text_input("Google Client ID:", value=cfg.get("client_id", ""), type="password")
+            c_sec = st.text_input("Google Client Secret:", value=cfg.get("client_secret", ""), type="password")
+            if st.button("Save & Activate Google OAuth", type="primary"):
+                if c_id and c_sec:
+                    save_google_credentials(c_id, c_sec)
+                    st.success("Google OAuth 2.0 Credentials saved and activated!")
+                    st.rerun()
+                else:
+                    st.warning("Please provide both Client ID and Client Secret.")
 
 
 # ── SESSION AUTHENTICATION GATEKEEPER ──

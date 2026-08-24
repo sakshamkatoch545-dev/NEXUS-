@@ -29,3 +29,8 @@ ai_image_detector/data/test/
 # Scratch and model download cache
 scratch/
 models/cache/
+
+# Auth credentials and active session tokens
+results/.session_secret.key
+results/sessions.json
+results/.auth_config.json
