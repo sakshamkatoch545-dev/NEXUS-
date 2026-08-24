@@ -12,26 +12,55 @@ _BASE = os.path.dirname(os.path.abspath(__file__))
 if _BASE not in sys.path:
     sys.path.insert(0, _BASE)
 
-from src.detector import (
-    full_image_analysis,
-    warmup_models,
-    extract_image_forensic_specs,
-    match_image_against_registry,
-    learn_and_register_image,
-    _get_cached_registry,
-)
-from src.auth import (
-    is_authenticated,
-    get_current_user,
-    login_user,
-    logout_user,
-    get_google_auth_url,
-    exchange_google_code,
-    verify_google_id_token,
-    verify_credentials,
-    login_demo_google_user,
-    try_restore_session_from_token,
-)
+try:
+    from src.detector import (
+        full_image_analysis,
+        warmup_models,
+        extract_image_forensic_specs,
+        match_image_against_registry,
+        learn_and_register_image,
+        _get_cached_registry,
+    )
+except Exception:
+    import importlib.util
+    _spec_d = importlib.util.spec_from_file_location("detector", os.path.join(_BASE, "src", "detector.py"))
+    _mod_d = importlib.util.module_from_spec(_spec_d)
+    _spec_d.loader.exec_module(_mod_d)
+    full_image_analysis = _mod_d.full_image_analysis
+    warmup_models = _mod_d.warmup_models
+    extract_image_forensic_specs = _mod_d.extract_image_forensic_specs
+    match_image_against_registry = _mod_d.match_image_against_registry
+    learn_and_register_image = _mod_d.learn_and_register_image
+    _get_cached_registry = _mod_d._get_cached_registry
+
+try:
+    from src.auth import (
+        is_authenticated,
+        get_current_user,
+        login_user,
+        logout_user,
+        get_google_auth_url,
+        exchange_google_code,
+        verify_google_id_token,
+        verify_credentials,
+        login_demo_google_user,
+        try_restore_session_from_token,
+    )
+except Exception:
+    import importlib.util
+    _spec_a = importlib.util.spec_from_file_location("auth", os.path.join(_BASE, "src", "auth.py"))
+    _mod_a = importlib.util.module_from_spec(_spec_a)
+    _spec_a.loader.exec_module(_mod_a)
+    is_authenticated = _mod_a.is_authenticated
+    get_current_user = _mod_a.get_current_user
+    login_user = _mod_a.login_user
+    logout_user = _mod_a.logout_user
+    get_google_auth_url = _mod_a.get_google_auth_url
+    exchange_google_code = _mod_a.exchange_google_code
+    verify_google_id_token = _mod_a.verify_google_id_token
+    verify_credentials = _mod_a.verify_credentials
+    login_demo_google_user = _mod_a.login_demo_google_user
+    try_restore_session_from_token = _mod_a.try_restore_session_from_token
 
 def _render_html(html_str: str):
     """Render pure HTML safely via native st.html without Markdown parser interference."""
