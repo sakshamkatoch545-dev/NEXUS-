@@ -1,0 +1,266 @@
+[
+  {
+    "test_case": "1. Genuine Camera Photograph",
+    "verdict": "REAL",
+    "confidence": 65.0,
+    "probabilities": {
+      "real": 65.0,
+      "ai_generated": 34.9,
+      "ai_edited": 0.1
+    },
+    "manipulation": {
+      "detected": false,
+      "type": null,
+      "severity": 0.4
+    },
+    "regions_count": 0,
+    "latency_ms": 13672.0,
+    "explanation": [
+      "Image characteristics and sensor noise residuals are consistent with a genuine camera-origin photograph.",
+      "Frequency domain energy distribution matches natural optical lens physics."
+    ],
+    "models_count": 5
+  },
+  {
+    "test_case": "2. Fully AI-Generated Image",
+    "verdict": "AI_GENERATED",
+    "confidence": 65.0,
+    "probabilities": {
+      "real": 35.0,
+      "ai_generated": 65.0,
+      "ai_edited": 0.0
+    },
+    "manipulation": {
+      "detected": false,
+      "type": null,
+      "severity": 0.0
+    },
+    "regions_count": 0,
+    "latency_ms": 1437.6,
+    "explanation": [
+      "Multiple independent forensic signals are consistent with synthetic image generation.",
+      "Neural classifier ensemble and spectral power decay exhibit generative diffusion signatures."
+    ],
+    "models_count": 5
+  },
+  {
+    "test_case": "3. AI-Generated Portrait",
+    "verdict": "AI_GENERATED",
+    "confidence": 67.9,
+    "probabilities": {
+      "real": 32.1,
+      "ai_generated": 67.9,
+      "ai_edited": 0.0
+    },
+    "manipulation": {
+      "detected": false,
+      "type": null,
+      "severity": 0.0
+    },
+    "regions_count": 0,
+    "latency_ms": 1359.8,
+    "explanation": [
+      "Multiple independent forensic signals are consistent with synthetic image generation.",
+      "Neural classifier ensemble and spectral power decay exhibit generative diffusion signatures."
+    ],
+    "models_count": 5
+  },
+  {
+    "test_case": "4. AI-Generated Landscape",
+    "verdict": "AI_GENERATED",
+    "confidence": 65.0,
+    "probabilities": {
+      "real": 35.0,
+      "ai_generated": 65.0,
+      "ai_edited": 0.0
+    },
+    "manipulation": {
+      "detected": false,
+      "type": null,
+      "severity": 0.0
+    },
+    "regions_count": 0,
+    "latency_ms": 1309.2,
+    "explanation": [
+      "Multiple independent forensic signals are consistent with synthetic image generation.",
+      "Neural classifier ensemble and spectral power decay exhibit generative diffusion signatures."
+    ],
+    "models_count": 5
+  },
+  {
+    "test_case": "5. Real Photo with AI Background Replacement",
+    "verdict": "REAL",
+    "confidence": 65.0,
+    "probabilities": {
+      "real": 65.0,
+      "ai_generated": 34.9,
+      "ai_edited": 0.1
+    },
+    "manipulation": {
+      "detected": false,
+      "type": null,
+      "severity": 0.8
+    },
+    "regions_count": 0,
+    "latency_ms": 1204.8,
+    "explanation": [
+      "Image characteristics and sensor noise residuals are consistent with a genuine camera-origin photograph.",
+      "Frequency domain energy distribution matches natural optical lens physics."
+    ],
+    "models_count": 5
+  },
+  {
+    "test_case": "6. Real Photo with AI Object Replacement",
+    "verdict": "REAL",
+    "confidence": 65.0,
+    "probabilities": {
+      "real": 65.0,
+      "ai_generated": 34.9,
+      "ai_edited": 0.1
+    },
+    "manipulation": {
+      "detected": false,
+      "type": null,
+      "severity": 0.4
+    },
+    "regions_count": 0,
+    "latency_ms": 1296.7,
+    "explanation": [
+      "Image characteristics and sensor noise residuals are consistent with a genuine camera-origin photograph.",
+      "Frequency domain energy distribution matches natural optical lens physics."
+    ],
+    "models_count": 5
+  },
+  {
+    "test_case": "7. AI Inpainting / Generative Fill",
+    "verdict": "REAL",
+    "confidence": 65.0,
+    "probabilities": {
+      "real": 65.0,
+      "ai_generated": 34.9,
+      "ai_edited": 0.1
+    },
+    "manipulation": {
+      "detected": false,
+      "type": null,
+      "severity": 0.4
+    },
+    "regions_count": 0,
+    "latency_ms": 1220.5,
+    "explanation": [
+      "Image characteristics and sensor noise residuals are consistent with a genuine camera-origin photograph.",
+      "Frequency domain energy distribution matches natural optical lens physics."
+    ],
+    "models_count": 5
+  },
+  {
+    "test_case": "8. Normal Photoshop / Color Correction",
+    "verdict": "REAL",
+    "confidence": 65.0,
+    "probabilities": {
+      "real": 65.0,
+      "ai_generated": 35.0,
+      "ai_edited": 0.0
+    },
+    "manipulation": {
+      "detected": false,
+      "type": null,
+      "severity": 0.2
+    },
+    "regions_count": 0,
+    "latency_ms": 1274.8,
+    "explanation": [
+      "Image characteristics and sensor noise residuals are consistent with a genuine camera-origin photograph.",
+      "Frequency domain energy distribution matches natural optical lens physics."
+    ],
+    "models_count": 5
+  },
+  {
+    "test_case": "9. JPEG-Compressed Real Photograph",
+    "verdict": "REAL",
+    "confidence": 65.0,
+    "probabilities": {
+      "real": 65.0,
+      "ai_generated": 35.0,
+      "ai_edited": 0.0
+    },
+    "manipulation": {
+      "detected": false,
+      "type": null,
+      "severity": 0.0
+    },
+    "regions_count": 0,
+    "latency_ms": 1296.2,
+    "explanation": [
+      "Image characteristics and sensor noise residuals are consistent with a genuine camera-origin photograph.",
+      "Frequency domain energy distribution matches natural optical lens physics."
+    ],
+    "models_count": 5
+  },
+  {
+    "test_case": "10. Screenshot / UI Crop",
+    "verdict": "REAL",
+    "confidence": 65.0,
+    "probabilities": {
+      "real": 65.0,
+      "ai_generated": 35.0,
+      "ai_edited": 0.0
+    },
+    "manipulation": {
+      "detected": false,
+      "type": null,
+      "severity": 0.2
+    },
+    "regions_count": 0,
+    "latency_ms": 1238.4,
+    "explanation": [
+      "Image characteristics and sensor noise residuals are consistent with a genuine camera-origin photograph.",
+      "Frequency domain energy distribution matches natural optical lens physics."
+    ],
+    "models_count": 5
+  },
+  {
+    "test_case": "11. Resized Image",
+    "verdict": "REAL",
+    "confidence": 65.0,
+    "probabilities": {
+      "real": 65.0,
+      "ai_generated": 35.0,
+      "ai_edited": 0.0
+    },
+    "manipulation": {
+      "detected": false,
+      "type": null,
+      "severity": 0.0
+    },
+    "regions_count": 0,
+    "latency_ms": 1336.8,
+    "explanation": [
+      "Image characteristics and sensor noise residuals are consistent with a genuine camera-origin photograph.",
+      "Frequency domain energy distribution matches natural optical lens physics."
+    ],
+    "models_count": 5
+  },
+  {
+    "test_case": "12. Ambiguous Image",
+    "verdict": "REAL",
+    "confidence": 65.0,
+    "probabilities": {
+      "real": 65.0,
+      "ai_generated": 35.0,
+      "ai_edited": 0.0
+    },
+    "manipulation": {
+      "detected": false,
+      "type": null,
+      "severity": 0.0
+    },
+    "regions_count": 0,
+    "latency_ms": 1424.2,
+    "explanation": [
+      "Image characteristics and sensor noise residuals are consistent with a genuine camera-origin photograph.",
+      "Frequency domain energy distribution matches natural optical lens physics."
+    ],
+    "models_count": 5
+  }
+]

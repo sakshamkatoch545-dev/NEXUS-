@@ -193,14 +193,15 @@ def ensure_ai_dataset(target: int = 130) -> list:
         print(f"[AI Dataset] Generating {needed} supplementary synthetic AI samples...")
         _generate_supplementary_ai(needed)
 
-    # Build weighted list: genuine AI = 5x weight
+    # Build weighted list: genuine AI & user feedback AI = 6x weight
     genuine_set   = {str(p) for p in genuine_ai}
+    feedback_set  = {str(p) for p in AI_DIR.glob("feedback_ai_*.jpg")} | {str(p) for p in AI_DIR.glob("user_uploaded_*.jpg")}
     hyperreal_set = {str(p) for p in AI_DIR.glob("hyperreal_ai_*.jpg")}
     weighted = []
     for p in sorted(AI_DIR.glob("*.jpg")) + sorted(AI_DIR.glob("*.png")):
         ps = str(p)
-        if ps in genuine_set:
-            w = 5.0   # genuinely AI-generated: highest weight
+        if ps in feedback_set or ps in genuine_set:
+            w = 6.0   # user verified AI & genuine AI: highest training priority
         elif ps in hyperreal_set:
             w = 4.0   # ultra-realistic computational: high weight (hardest negatives)
         else:
@@ -208,7 +209,7 @@ def ensure_ai_dataset(target: int = 130) -> list:
         weighted.append((ps, w))
 
     print(f"[AI Dataset] Total AI samples: {len(weighted)}  "
-          f"(genuine: {len(genuine_ai)}, synthetic: {len(weighted)-len(genuine_ai)})")
+          f"(genuine/feedback: {len(genuine_set | feedback_set)}, synthetic: {len(weighted)-len(genuine_set | feedback_set)})")
     return weighted
 
 

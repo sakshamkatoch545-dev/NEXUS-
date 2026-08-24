@@ -1,9 +1,9 @@
 {
   "eval_accuracy": 1.0,
-  "eval_loss": 0.001921,
-  "train_samples": 514,
-  "val_samples": 119,
-  "epochs": 4,
+  "eval_loss": 0.000454,
+  "train_samples": 569,
+  "val_samples": 120,
+  "epochs": 3,
   "base_model": "google/vit-base-patch16-224",
   "real_source": "LFW face dataset (sklearn)",
   "ai_source": "Genuine AI-generated images + synthetic PIL",

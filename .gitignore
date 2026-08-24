@@ -26,5 +26,6 @@ data/test/
 ai_image_detector/data/train/
 ai_image_detector/data/validation/
 ai_image_detector/data/test/
-!**/.gitkeep
-
+# Scratch and model download cache
+scratch/
+models/cache/

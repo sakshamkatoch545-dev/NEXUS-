@@ -1,0 +1,26 @@
+{
+  "version": "1.0.0",
+  "updated_at": "2026-08-21T15:00:00Z",
+  "thresholds": {
+    "real_threshold": 0.35,
+    "ai_threshold": 0.65,
+    "uncertainty_threshold": 0.20
+  },
+  "verdicts": {
+    "real": "REAL",
+    "likely_ai": "LIKELY_AI",
+    "ai_generated": "AI_GENERATED",
+    "undetermined": "UNDETERMINED"
+  },
+  "reliability_weights": {
+    "capcheck_vit": 1.2,
+    "divine2k_resnet50": 1.0,
+    "divine2k_efficientnet": 1.0,
+    "divine2k_convnext": 1.1,
+    "dear_corvi_resnet50": 1.3
+  },
+  "forensic_fusion": {
+    "enabled": true,
+    "weight": 0.25
+  }
+}

@@ -1,28 +1,35 @@
-"""
-app.py — NEXUS+ AI Detector v6.0
-Cyber forensics UI (violet · cyan · dark glass)
-"""
-
 import sys
 import os
+import textwrap
 import base64
-import importlib
+import threading
 from io import BytesIO
 
 import streamlit as st
 from PIL import Image
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-try:
-    import src.detector
-    importlib.reload(src.detector)
-    from src.detector import full_image_analysis
-except Exception:
-    from src.detector import full_image_analysis
+from src.detector import (
+    full_image_analysis,
+    warmup_models,
+    extract_image_forensic_specs,
+    match_image_against_registry,
+    learn_and_register_image,
+    _get_cached_registry,
+)
+
+def _render_html(html_str: str):
+    """Render pure HTML safely via native st.html without Markdown parser interference."""
+    st.html(textwrap.dedent(html_str).strip())
+
+# Background Zero-Latency Model Warmup
+if "warmed_up" not in st.session_state:
+    st.session_state.warmed_up = True
+    threading.Thread(target=warmup_models, daemon=True).start()
 
 st.set_page_config(
     page_title="NEXUS+ AI Detector",
-    page_icon="🔬",
+    page_icon="",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -57,9 +64,10 @@ TINT_AMBER = "rgba(245, 158, 11, 0.14)"
 _BASE = os.path.dirname(os.path.abspath(__file__))
 
 
-def _image_to_b64(img: Image.Image, fmt: str = "JPEG") -> str:
+@st.cache_data(show_spinner=False, max_entries=32)
+def _image_bytes_to_b64(img_bytes: bytes, fmt: str = "JPEG") -> str:
+    img = Image.open(BytesIO(img_bytes))
     buf = BytesIO()
-    # Fast lightweight preview thumbnail to eliminate DOM lag
     working_img = img.copy()
     working_img.thumbnail((600, 600), Image.Resampling.BILINEAR)
     if working_img.mode != "RGB":
@@ -67,7 +75,12 @@ def _image_to_b64(img: Image.Image, fmt: str = "JPEG") -> str:
     working_img.save(buf, format=fmt, quality=75, optimize=True)
     return base64.b64encode(buf.getvalue()).decode("utf-8")
 
-@st.cache_data(show_spinner=False)
+
+def _image_to_b64(img: Image.Image, fmt: str = "JPEG") -> str:
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    return _image_bytes_to_b64(buf.getvalue(), fmt=fmt)
+
 def _read_css_files():
     with open(os.path.join(_BASE, "style.css"), encoding="utf-8") as f:
         css_content = f.read()
@@ -167,7 +180,7 @@ button[kind="primary"] p, [data-testid="stBaseButton-primary"] p {{
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<div class="glass-bg-optimized" aria-hidden="true"></div>', unsafe_allow_html=True)
+_render_html('<div class="glass-bg-optimized" aria-hidden="true"></div>')
 
 
 # ──────────────────────────────────────────────
@@ -232,7 +245,7 @@ def _render_engine_grid(result: dict):
         else:
             badge_cls, fill_cls, badge_txt = "badge-low", "efill-lo", "LOW AI RISK"
 
-        icon = eng.get("icon", "🔬")
+        icon = ""
         is_judge = (key == "forensic_judge")
         judge_style = "border: 1px solid rgba(6,182,212,0.5); background: linear-gradient(135deg, rgba(15,23,42,0.92) 0%, rgba(6,182,212,0.08) 100%);" if is_judge else ""
         card_html = (
@@ -258,13 +271,13 @@ def _render_engine_grid(result: dict):
 
     grid_html = (
         '<div class="section-heading">'
-        '<span class="sh-icon">⚖️</span>'
+        '<span class="sh-icon">[CONSENSUS]</span>'
         '<span class="sh-text">14-Engine Multi-Domain Forensics</span>'
         '<span class="sh-line"></span>'
         '</div>'
         f'<div class="engine-grid">{"".join(html_cards)}</div>'
     )
-    st.markdown(grid_html, unsafe_allow_html=True)
+    _render_html(grid_html)
 
 
 ENGINES_INFO = [
@@ -357,10 +370,7 @@ ENGINES_INFO = [
 
 def _render_engine_catalog():
     """Clickable list of all 14 engines — tap any row for a short summary."""
-    st.markdown(
-        '<p class="engine-catalog-hint">Click any engine to see what it uses and how it helps detection.</p>',
-        unsafe_allow_html=True,
-    )
+    _render_html('<p class="engine-catalog-hint">Click any engine to see what it uses and how it helps detection.</p>')
     rows = "".join(
         f'<details class="engine-details">'
         f'<summary class="engine-details-summary">'
@@ -373,10 +383,7 @@ def _render_engine_catalog():
         f"</details>"
         for eng in ENGINES_INFO
     )
-    st.markdown(
-        f'<div class="glass-card engine-list-wrap">{rows}</div>',
-        unsafe_allow_html=True,
-    )
+    _render_html(f'<div class="glass-card engine-list-wrap">{rows}</div>')
 
 
 def _render_page_subheader(tagline: str, pills: list[str], live: bool = False):
@@ -393,19 +400,18 @@ def _render_page_subheader(tagline: str, pills: list[str], live: bool = False):
         else:
             pill_html += f'<span class="scan-header-pill">{pill}</span>'
 
-    st.markdown(
+    _render_html(
         f'<div class="scan-page-subheader">'
         f'<p class="scan-header-tagline">{tagline}</p>'
         f'<div class="scan-header-bar">{pill_html}</div>'
-        f"</div>",
-        unsafe_allow_html=True,
+        f"</div>"
     )
 
 
 def _results_summary_html(verdict: str, ai_pct: float, human_pct: float, edit_pct: float = 0.0) -> str:
-    if verdict == "AI-GENERATED":
+    if verdict in ("AI-GENERATED", "GENERATED BY AI"):
         return (
-            f'<span class="summary-highlight-ai">High AI likelihood detected ({ai_pct:.1f}% AI)</span><br><br>'
+            f'<span class="summary-highlight-ai">Generated by AI ({ai_pct:.1f}% AI threat)</span><br><br>'
             "This image displays strong artificial characteristics across multiple forensic domains. "
             "Primary indicators include anomalous frequency distribution, over-smooth texture variance, "
             "and hyper-saturated color profiles typical of neural diffusion models."
@@ -444,8 +450,8 @@ def _render_top_verdict_note() -> str:
     ai_pct = float(result.get("confidence_score", 0))
     human_pct = float(result.get("human_score", 100.0 - ai_pct))
 
-    if verdict == "AI-GENERATED":
-        cls, label, detail = "top-verdict-ai", "AI GENERATED", f"{ai_pct:.1f}% AI threat"
+    if verdict in ("AI-GENERATED", "GENERATED BY AI"):
+        cls, label, detail = "top-verdict-ai", "GENERATED BY AI", f"{ai_pct:.1f}% AI threat"
     elif verdict == "AI-EDITED":
         cls, label, detail = "top-verdict-edited", "LIKELY REAL BUT EDITED BY AI", f"{ai_pct:.1f}% AI in sub-regions"
     elif verdict == "UNCERTAIN":
@@ -467,32 +473,37 @@ def _nav_to_homepage():
 
 
 def _render_nav():
-    """Engines strip + HOMEPAGE · EXECUTION · ENGINES nav."""
+    """Engines strip + HOMEPAGE · EXECUTION · ENGINES · TRAIN nav."""
     page = st.session_state.page
     home_active = page == "landing"
     exec_active = page == "execute"
     eng_active = page == "engines"
+    train_active = page == "train"
 
     chips = "".join(
         f'<span class="top-engine-chip">{eng["name"]}</span>'
         for eng in ENGINES_INFO
     )
-    footer_note = "" if page == "execute" else _render_top_verdict_note()
+    footer_note = "" if page in ("execute", "train") else _render_top_verdict_note()
 
     if page == "execute":
-        st.markdown(
+        _render_html(
             '<div class="top-header-wrap"><div class="top-engines-bar top-engines-bar-execute">'
             '<div class="top-engines-hero">NEXUS+ <span class="version-badge">v6.0</span></div>'
-            "</div></div>",
-            unsafe_allow_html=True,
+            "</div></div>"
+        )
+    elif page == "train":
+        _render_html(
+            '<div class="top-header-wrap"><div class="top-engines-bar top-engines-bar-execute">'
+            '<div class="top-engines-hero">NEXUS+ <span class="version-badge">FORENSIC TRAINER</span></div>'
+            "</div></div>"
         )
     else:
-        st.markdown(
+        _render_html(
             f'<div class="top-header-wrap"><div class="top-engines-bar">'
             f'<div class="top-engines-label">Engines</div>'
             f'<div class="top-engine-strip">{chips}</div>{footer_note}'
-            f"</div></div>",
-            unsafe_allow_html=True,
+            f"</div></div>"
         )
 
     home_active_css = (
@@ -512,6 +523,12 @@ def _render_nav():
         "box-shadow: inset 0 1px 0 rgba(209,213,219,0.28), inset 0 -2px 0 rgba(0,0,0,0.22), "
         "0 6px 22px rgba(0,0,0,0.45), 0 0 28px rgba(209,213,219,0.14) !important;"
         if eng_active else ""
+    )
+    train_active_css = (
+        "border-color: #d1d5db !important; "
+        "box-shadow: inset 0 1px 0 rgba(209,213,219,0.28), inset 0 -2px 0 rgba(0,0,0,0.22), "
+        "0 6px 22px rgba(0,0,0,0.45), 0 0 28px rgba(209,213,219,0.14) !important;"
+        if train_active else ""
     )
     st.markdown(
         f"""
@@ -534,14 +551,20 @@ def _render_nav():
             [data-testid="column"]:nth-child(3) .stButton > button {{
             {eng_active_css}
         }}
+        .top-header-wrap + div[data-testid="stHorizontalBlock"]
+            [data-testid="column"]:nth-child(2)
+            [data-testid="stHorizontalBlock"]
+            [data-testid="column"]:nth-child(4) .stButton > button {{
+            {train_active_css}
+        }}
         </style>
         """,
         unsafe_allow_html=True,
     )
 
-    _, nav_col, _ = st.columns([1, 3.4, 1])
+    _, nav_col, _ = st.columns([1, 4.2, 1])
     with nav_col:
-        n1, n2, n3 = st.columns(3, gap="small")
+        n1, n2, n3, n4 = st.columns(4, gap="small")
         with n1:
             if st.button(
                 "HOMEPAGE",
@@ -569,6 +592,15 @@ def _render_nav():
             ):
                 st.session_state.page = "engines"
                 st.rerun()
+        with n4:
+            if st.button(
+                "TRAIN",
+                key="nav_train",
+                use_container_width=True,
+                type="primary",
+            ):
+                st.session_state.page = "train"
+                st.rerun()
 
 
 _render_nav()
@@ -589,15 +621,15 @@ def _render_execution_header():
     )
 
 
-def _render_image_lightbox(image: Image.Image, meta: dict, toggle_id: str):
+def _render_image_lightbox(image: Image.Image, meta: dict, toggle_id: str, card_title: str = "", show_card: bool = False):
     """Click-to-zoom full-resolution preview, reused on both pages."""
     img_b64 = _image_to_b64(image)
-    st.markdown(f"""
+    lightbox_inner = f"""
     <div class="img-preview-wrap">
         <input type="checkbox" id="{toggle_id}" class="img-zoom-toggle">
         <label for="{toggle_id}" class="img-preview-trigger">
             <img src="data:image/jpeg;base64,{img_b64}" class="preview-thumb" />
-            <div class="img-preview-hint">🔍 Click for full-resolution preview</div>
+            <div class="img-preview-hint">Click for full-resolution preview</div>
         </label>
         <label for="{toggle_id}" class="img-zoom-overlay">
             <img src="data:image/jpeg;base64,{img_b64}" class="img-zoom-full" onclick="event.stopPropagation();" />
@@ -605,7 +637,25 @@ def _render_image_lightbox(image: Image.Image, meta: dict, toggle_id: str):
             <div class="img-zoom-close-hint">click anywhere to close</div>
         </label>
     </div>
-    """, unsafe_allow_html=True)
+    """
+    if show_card:
+        title_html = f'<div class="glass-title">{card_title}</div>' if card_title else ""
+        meta_html = f"""
+        <div class="result-meta-row">
+            <span>{meta['width']}×{meta['height']}px</span>
+            <span>{meta['fmt']}</span>
+        </div>
+        """
+        full_html = f"""
+        <div class="glass-card result-thumb-card">
+            {title_html}
+            {lightbox_inner}
+            {meta_html}
+        </div>
+        """
+        _render_html(full_html)
+    else:
+        _render_html(lightbox_inner)
 
 
 # ──────────────────────────────────────────────
@@ -613,7 +663,7 @@ def _render_image_lightbox(image: Image.Image, meta: dict, toggle_id: str):
 # ──────────────────────────────────────────────
 
 if st.session_state.page == "landing":
-    st.markdown(
+    _render_html(
         """
         <div class="liquid-hero-frame landing-page page-fade" style="text-align: center;">
             <div class="status-badge-wrap">
@@ -624,11 +674,10 @@ if st.session_state.page == "landing":
             <p class="landing-tagline"><b>Advanced AI Image Forensics & Meta-Judge</b></p>
             <p class="landing-subtagline">Calibrated for <b>Diffusion Models</b>, <b>GANs</b> & <b>AI Inpainting</b></p>
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
-    st.markdown("""
+    _render_html("""
     <div class="landing-metrics-bar">
         <div class="l-metric-card">
             <span class="lm-val">14</span>
@@ -647,56 +696,56 @@ if st.session_state.page == "landing":
             <span class="lm-lbl">Meta-Arbitration</span>
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
-    st.markdown("""
+    _render_html("""
     <div class="landing-cta-box">
         <h3 class="cta-title">Ready for Forensic Inspection?</h3>
         <p class="cta-desc">Upload any profile picture, media render, or suspect photo to generate a comprehensive 14-engine threat score breakdown.</p>
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
     _, cta_col, _ = st.columns([1, 1.3, 1])
     with cta_col:
-        if st.button("⚡  Begin Forensic Scan", use_container_width=True, type="primary"):
+        if st.button("Begin Forensic Scan", use_container_width=True, type="primary"):
             st.session_state.page = "execute"
             st.rerun()
 
-    st.markdown("""
+    _render_html("""
     <div class="landing-pillars-grid">
         <div class="pillar-card">
-            <div class="pillar-icon">🧠</div>
+            <div class="pillar-icon">01</div>
             <div class="pillar-title">Neural & Semantic</div>
             <div class="pillar-desc">Combines fine-tuned Vision Transformers with OpenAI CLIP zero-shot semantic matching to flag synthetic rendering patterns.</div>
         </div>
         <div class="pillar-card">
-            <div class="pillar-icon">📊</div>
+            <div class="pillar-icon">02</div>
             <div class="pillar-title">Spectral & Frequency</div>
             <div class="pillar-desc">Calculates 2D Fast Fourier Transforms (FFT) and multi-scale texture smoothness to detect high-frequency sensor noise loss.</div>
         </div>
         <div class="pillar-card">
-            <div class="pillar-icon">🪄</div>
+            <div class="pillar-icon">03</div>
             <div class="pillar-title">Compression & Inpainting</div>
             <div class="pillar-desc">Re-compresses JPEG error levels (ELA) and analyzes spatial noise/gradient boundaries to detect localized AI inpainting and generative edits.</div>
         </div>
         <div class="pillar-card">
-            <div class="pillar-icon">⚖️</div>
+            <div class="pillar-icon">04</div>
             <div class="pillar-title">Forensic Judge Engine</div>
             <div class="pillar-desc">Meta-ensemble arbitration synthesizes cross-domain signals into a Bayesian consensus to eliminate borderline ambiguity.</div>
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
     chips = "".join(
         f'<span class="engine-chip" style="margin: 0.2rem;">{eng["name"]}</span>'
         for eng in ENGINES_INFO
     )
-    st.markdown(f"""
+    _render_html(f"""
     <div class="glass-card" style="text-align:center; margin-top: 1.5rem;">
-        <div class="glass-title" style="justify-content:center;">🛡️ 14 Active Forensic Inspection Modules</div>
+        <div class="glass-title" style="justify-content:center;">14 Active Forensic Inspection Modules</div>
         <div class="showcase-chip-grid">{chips}</div>
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
 
 # ══════════════════════════════════════════════════════════════
@@ -704,9 +753,8 @@ if st.session_state.page == "landing":
 # ══════════════════════════════════════════════════════════════
 
 elif st.session_state.page == "engines":
-    st.markdown(
-        "<h1>Detection <span class='version-badge'>Engines</span></h1>",
-        unsafe_allow_html=True,
+    _render_html(
+        "<h1>Detection <span class='version-badge'>Engines</span></h1>"
     )
     _render_page_subheader(
         "Forensic modules in every scan",
@@ -715,10 +763,9 @@ elif st.session_state.page == "engines":
 
     if _has_live_scan():
         result = st.session_state.result
-        st.markdown(
+        _render_html(
             f"<p class='landing-tagline'>{result['verdict_label']} · "
-            f"{result['confidence_score']:.1f}% AI threat · per-engine scores below</p>",
-            unsafe_allow_html=True,
+            f"{result['confidence_score']:.1f}% AI threat · per-engine scores below</p>"
         )
         _render_engine_grid(result)
 
@@ -734,13 +781,12 @@ elif st.session_state.page == "engines":
                     _go_execution(clear_upload=True)
                     st.rerun()
 
-        st.markdown(
+        _render_html(
             '<div class="section-heading" style="margin-top:2.5rem;">'
-            '<span class="sh-icon">📖</span>'
+            '<span class="sh-icon">[SPECS]</span>'
             '<span class="sh-text">Engine Specifications & Architecture</span>'
             '<span class="sh-line"></span>'
-            '</div>',
-            unsafe_allow_html=True,
+            '</div>'
         )
         _render_engine_catalog()
     else:
@@ -749,7 +795,7 @@ elif st.session_state.page == "engines":
         if st.session_state.scan_ready:
             _, exec_col, _ = st.columns([1, 1.2, 1])
             with exec_col:
-                if st.button("⚡  Execute Forensic Scan", use_container_width=True, type="primary"):
+                if st.button("Execute Forensic Scan", use_container_width=True, type="primary"):
                     st.session_state.page = "execute"
                     st.rerun()
         else:
@@ -771,13 +817,12 @@ elif st.session_state.page == "execute":
         _render_execution_header()
 
         # ── Upload Card ──
-        st.markdown(
+        _render_html(
             """
             <div class="upload-card-head glass-card">
                 <div class="glass-title">Image Payload</div>
             </div>
-            """,
-            unsafe_allow_html=True,
+            """
         )
 
         uploaded = st.file_uploader(
@@ -807,13 +852,13 @@ elif st.session_state.page == "execute":
             c1, c2 = st.columns([2.2, 1])
             with c1:
                 analyze = st.button(
-                    "⚡  Execute Forensic Scan",
+                    "Execute Forensic Scan",
                     use_container_width=True,
                     type="primary",
                 )
             with c2:
                 cancel = st.button(
-                    "✕  Cancel",
+                    "Cancel",
                     use_container_width=True,
                     type="secondary",
                 )
@@ -827,12 +872,12 @@ elif st.session_state.page == "execute":
             f'<span class="engine-chip" style="animation-delay:{i * 0.03:.2f}s">{eng["name"]}</span>'
             for i, eng in enumerate(ENGINES_INFO)
         )
-        st.markdown(f"""
+        _render_html(f"""
         <div class="glass-card" style="text-align:center;">
             <div class="glass-title" style="justify-content:center;">14 Detection Engines Ready</div>
             <div class="engine-chip-strip">{chips}</div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
         # ── Trigger analysis → jump to scan summary page ──
         if analyze and uploaded and image is not None:
@@ -844,7 +889,7 @@ elif st.session_state.page == "execute":
                 prog_bar.progress(min(pct, 100))
                 status_text.markdown(
                     f"<div class='scan-pulse' style='text-align:center; font-size:0.95rem; color:#06b6d4;'>"
-                    f"⚡ [{pct}%] {label}</div>",
+                    f"[{pct}%] {label}</div>",
                     unsafe_allow_html=True,
                 )
             
@@ -878,10 +923,9 @@ elif st.session_state.page == "results":
         st.session_state.page = "execute"
         st.rerun()
 
-    st.markdown(
+    _render_html(
         "<h1 style='font-size:1.9rem !important;'>NEXUS+ "
-        "<span class='version-badge' style='font-size:1rem;'>v7.0 · SCAN RESULTS</span></h1>",
-        unsafe_allow_html=True,
+        "<span class='version-badge' style='font-size:1rem;'>v7.0 · SCAN RESULTS</span></h1>"
     )
 
     # ── Back / New Scan control ──
@@ -897,7 +941,7 @@ elif st.session_state.page == "results":
     is_edited = bool(result.get("is_ai_edited", False) and verdict == "AI-EDITED")
     ai_edited_score = float(result.get("ai_edited_score", 0.0))
 
-    if verdict == "AI-GENERATED":
+    if verdict in ("AI-GENERATED", "GENERATED BY AI"):
         vc, fc = "v-ai", "fill-ai"
     elif verdict == "AI-EDITED":
         vc, fc = "v-edited", "fill-edited"
@@ -911,33 +955,41 @@ elif st.session_state.page == "results":
     ai_votes    = result.get("high_risk_engine_count", 0)
     human_votes = result.get("human_engine_count", 0)
 
+    # ── Memory Exemplar Match Banner ──
+    if result.get("is_memory_match"):
+        mm = result.get("memory_match", {})
+        sim_val = result.get("memory_similarity", 100.0)
+        ex = mm.get("exemplar", {})
+        m_type = mm.get("match_type", "EXEMPLAR_MATCH")
+        notes_str = f"<br><b>Exemplar Notes:</b> {ex.get('notes')}" if ex.get('notes') else ""
+        _render_html(f"""
+        <div class="memory-match-banner">
+            <div class="memory-match-title">TRAINED MEMORY MATCH CONFIRMED ({sim_val:.1f}% Similarity)</div>
+            <div class="memory-match-sub">
+                <b>Matched Exemplar:</b> {ex.get('filename', 'Trained Exemplar')} &nbsp;·&nbsp;
+                <b>Match Engine:</b> {m_type} &nbsp;·&nbsp;
+                <b>Registered:</b> {ex.get('registered_at', 'N/A')}
+                {notes_str}
+            </div>
+        </div>
+        """)
+
     # ══════════════════════════════════════════════
     # SECTION 1 — ANALYZED IMAGE + VERDICT
     # ══════════════════════════════════════════════
     img_col, verdict_col = st.columns([1, 1.6], gap="large")
 
     with img_col:
-        st.markdown(
-            """
-            <div class="glass-card result-thumb-card">
-            <div class="glass-title">Analyzed Image</div>
-            """,
-            unsafe_allow_html=True,
-        )
-        _render_image_lightbox(image, meta, toggle_id="results-img-zoom-toggle")
-        st.markdown(
-            f"""
-            <div class="result-meta-row">
-                <span>{meta['width']}×{meta['height']}px</span>
-                <span>{meta['fmt']}</span>
-            </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
+        _render_image_lightbox(
+            image,
+            meta,
+            toggle_id="results-img-zoom-toggle",
+            card_title="Analyzed Image",
+            show_card=True
         )
 
     with verdict_col:
-        st.markdown(f"""
+        _render_html(f"""
         <div class="verdict-box {vc}">
             <h2>{result["verdict_label"]}</h2>
             <div class="v-score">
@@ -954,11 +1006,11 @@ elif st.session_state.page == "results":
                 <span style="opacity:0.65;">({ai_votes} HIGH-RISK · {human_votes} LOWER-RISK)</span>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
     # ── Metric Cards ──
     if is_edited or verdict == "AI-EDITED":
-        st.markdown(f"""
+        _render_html(f"""
         <div class="metric-grid" style="grid-template-columns: repeat(3, 1fr);">
             <div class="metric-card m-human">
                 <div class="m-label">Base Authenticity</div>
@@ -973,9 +1025,9 @@ elif st.session_state.page == "results":
                 <div class="m-value">{ai_pct:.1f}%</div>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
     else:
-        st.markdown(f"""
+        _render_html(f"""
         <div class="metric-grid">
             <div class="metric-card m-human">
                 <div class="m-label">Human Confidence</div>
@@ -986,17 +1038,14 @@ elif st.session_state.page == "results":
                 <div class="m-value">{ai_pct:.1f}%</div>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
-    st.markdown(
-        f"""
-        <div class="glass-card">
-        <div class="glass-title">Forensic Summary</div>
-        <div class="summary-text">{_results_summary_html(verdict, ai_pct, human_pct, edit_pct=ai_edited_score)}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    _render_html(f"""
+    <div class="glass-card">
+    <div class="glass-title">Forensic Summary</div>
+    <div class="summary-text">{_results_summary_html(verdict, ai_pct, human_pct, edit_pct=ai_edited_score)}</div>
+    </div>
+    """)
 
     _, eng_cta, _ = st.columns([1, 1.2, 1])
     with eng_cta:
@@ -1005,13 +1054,296 @@ elif st.session_state.page == "results":
             st.rerun()
 
 
+# ══════════════════════════════════════════════════════════════
+# TRAIN & MEMORY PAGE
+# ══════════════════════════════════════════════════════════════
+
+elif st.session_state.page == "train":
+    _render_html(
+        "<h1 style='margin-bottom: 0.2rem;'>Forensic <span class='version-badge'>TRAINER & MEMORY BANK</span></h1>"
+    )
+    _render_page_subheader(
+        "Teach & Remember Image Specs · Perceptual Fingerprints · Exemplar Recall",
+        ["Spec Extraction", "dHash Fingerprinting", "Instant Spec-Matching"],
+    )
+
+    _render_html("<div style='margin-top: 1.5rem;'></div>")
+
+    t_train, t_match, t_bank = st.tabs([
+        "Train & Remember Image",
+        "Spec-Match Suspect Photo",
+        "Learned Knowledge Bank",
+    ])
+
+    # ── TAB 1: TRAIN & REMEMBER ──
+    with t_train:
+        _render_html("<div style='margin-top: 1.2rem;'></div>")
+        left_t, mid_t, right_t = st.columns([1, 2.8, 1])
+        with mid_t:
+            _render_html(
+                """
+                <div class="upload-card-head glass-card" style="margin-bottom: 1.2rem;">
+                    <div class="glass-title">1. Select Training Image Payload</div>
+                </div>
+                """
+            )
+
+            train_file = st.file_uploader(
+                "Upload image to teach NEXUS+",
+                type=["png", "jpg", "jpeg", "webp"],
+                key="trainer_uploader",
+                label_visibility="collapsed",
+            )
+
+            if train_file:
+                train_img = Image.open(train_file).convert("RGB")
+                
+                # Centered, bounded preview
+                p_c1, p_c2, p_c3 = st.columns([1, 2, 1])
+                with p_c2:
+                    st.image(train_img, use_container_width=True, caption=f"{train_file.name} ({train_img.width}x{train_img.height}px)")
+
+                _render_html("<div style='margin-top: 1.5rem;'></div>")
+                _render_html("""
+                <div class="glass-card" style="padding: 1.2rem 1.4rem; margin-bottom: 1.2rem;">
+                    <div class="glass-title" style="margin-bottom: 0.8rem;">2. Define Ground Truth & Metadata</div>
+                </div>
+                """)
+
+                label_choice = st.radio(
+                    "Ground Truth Classification Category:",
+                    [
+                        "GENERATED BY AI (Full Synthetic Diffusion / Midjourney / Flux / SDXL)",
+                        "AI-EDITED (Authentic Camera Base + AI Inpainting / Filter / Retouch)",
+                        "AUTHENTIC / REAL (Original Optical Camera Capture)",
+                    ],
+                    index=0,
+                )
+
+                if "GENERATED" in label_choice:
+                    target_label = "generated_by_ai"
+                elif "EDITED" in label_choice:
+                    target_label = "ai_edited"
+                else:
+                    target_label = "real"
+
+                _render_html("<div style='margin-top: 1rem;'></div>")
+                train_notes = st.text_input(
+                    "Exemplar Description / Custom Notes (optional):",
+                    placeholder="e.g., Midjourney v6 photorealistic studio portrait or iPhone 15 real portrait",
+                )
+
+                _render_html("<div style='margin-top: 1.6rem;'></div>")
+                if st.button("Train & Remember Image", type="primary", use_container_width=True):
+                    with st.spinner("Extracting 14-engine forensic specs and registering to permanent memory..."):
+                        record = learn_and_register_image(train_img, label=target_label, notes=train_notes)
+                        st.success(f"Successfully trained and locked {os.path.basename(train_file.name)} in permanent memory!")
+                        
+                        specs = record.get("forensic_specs", {})
+                        h_freq = specs.get('frequency_specs', {}).get('high_frequency_ratio', 0)
+                        l_var = specs.get('texture_specs', {}).get('laplacian_variance', 0)
+                        n_std = specs.get('noise_specs', {}).get('sensor_noise_std', 0)
+                        s_mean = specs.get('color_profile', {}).get('saturation_mean', 0)
+
+                        _render_html(f"""
+                        <div class="train-card">
+                            <div style="font-size:1.15rem;font-weight:800;color:#10b981;margin-bottom:0.8rem;letter-spacing:0.04em;">
+                                LOCKED FORENSIC CERTIFICATE: {record['verdict_label']}
+                            </div>
+                            <div style="margin-bottom:0.35rem;"><b>SHA-256:</b> <code style="color:#a78bfa;">{record['sha256']}</code></div>
+                            <div style="margin-bottom:0.35rem;"><b>Perceptual dHash:</b> <code style="color:#38bdf8;">{record['dhash']}</code></div>
+                            <div style="margin-bottom:0.35rem;"><b>Archived Dataset:</b> <code style="color:#94a3b8;">{record['dataset_path']}</code></div>
+                            <div class="train-spec-grid">
+                                <div class="train-spec-item">
+                                    <div class="train-spec-item-label">FFT High-Freq Ratio</div>
+                                    <div class="train-spec-item-val">{h_freq}</div>
+                                </div>
+                                <div class="train-spec-item">
+                                    <div class="train-spec-item-label">Texture Laplacian Var</div>
+                                    <div class="train-spec-item-val">{l_var}</div>
+                                </div>
+                                <div class="train-spec-item">
+                                    <div class="train-spec-item-label">Sensor Noise STD</div>
+                                    <div class="train-spec-item-val">{n_std}</div>
+                                </div>
+                                <div class="train-spec-item">
+                                    <div class="train-spec-item-label">Color Saturation Mean</div>
+                                    <div class="train-spec-item-val">{s_mean}</div>
+                                </div>
+                            </div>
+                        </div>
+                        """)
+
+    # ── TAB 2: SPEC-MATCH & ANALYZE ──
+    with t_match:
+        _render_html("<div style='margin-top: 1.2rem;'></div>")
+        left_m, mid_m, right_m = st.columns([1, 2.8, 1])
+        with mid_m:
+            _render_html("""
+            <div class="upload-card-head glass-card" style="margin-bottom: 1.2rem;">
+                <div class="glass-title">Test Suspect Photo Against Trained Knowledge Bank</div>
+            </div>
+            """)
+
+            test_file = st.file_uploader(
+                "Upload suspect image to check if its specs match trained photos",
+                type=["png", "jpg", "jpeg", "webp"],
+                key="matcher_uploader",
+                label_visibility="collapsed",
+            )
+
+            if test_file:
+                test_img = Image.open(test_file).convert("RGB")
+                
+                # Centered preview
+                p_c1, p_c2, p_c3 = st.columns([1, 2, 1])
+                with p_c2:
+                    st.image(test_img, use_container_width=True, caption=f"{test_file.name} ({test_img.width}x{test_img.height}px)")
+
+                _render_html("<div style='margin-top: 1.4rem;'></div>")
+                if st.button("Analyze & Spec-Match Against Memory", type="primary", use_container_width=True):
+                    with st.spinner("Extracting specs and querying knowledge bank..."):
+                        m_res = match_image_against_registry(test_img, threshold=75.0)
+
+                        if m_res.get("matched"):
+                            ex = m_res["exemplar"]
+                            sim = m_res["similarity"]
+                            m_type = m_res["match_type"]
+                            v_label = m_res["trained_verdict_label"]
+                            inp_specs = m_res.get("specs", {})
+                            tgt_specs = ex.get("forensic_specs", {})
+
+                            _render_html(f"""
+                            <div class="memory-match-banner">
+                                <div class="memory-match-title">TRAINED MEMORY MATCH CONFIRMED ({sim:.1f}% Similarity)</div>
+                                <div class="memory-match-sub">
+                                    <b>Match Engine:</b> {m_type} &nbsp;·&nbsp; 
+                                    <b>Matched Exemplar:</b> {ex.get('filename')} &nbsp;·&nbsp;
+                                    <b>Learned Verdict:</b> {v_label}
+                                    {f"<br><b>Exemplar Notes:</b> {ex.get('notes')}" if ex.get('notes') else ""}
+                                </div>
+                            </div>
+                            """)
+
+                            if tgt_specs:
+                                inp_res_str = f"{inp_specs.get('resolution',{}).get('width','?')}x{inp_specs.get('resolution',{}).get('height','?')}"
+                                tgt_res_str = f"{tgt_specs.get('resolution',{}).get('width','?')}x{tgt_specs.get('resolution',{}).get('height','?')}"
+                                _render_html(f"""
+                                <table class="spec-diff-table">
+                                    <thead>
+                                        <tr>
+                                            <th>FORENSIC METRIC</th>
+                                            <th>TEST IMAGE</th>
+                                            <th>MATCHED EXEMPLAR</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>Resolution</td>
+                                            <td>{inp_res_str}</td>
+                                            <td>{tgt_res_str}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>FFT High-Freq Ratio</td>
+                                            <td>{inp_specs.get('frequency_specs',{}).get('high_frequency_ratio',0)}</td>
+                                            <td>{tgt_specs.get('frequency_specs',{}).get('high_frequency_ratio',0)}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Texture Laplacian Variance</td>
+                                            <td>{inp_specs.get('texture_specs',{}).get('laplacian_variance',0)}</td>
+                                            <td>{tgt_specs.get('texture_specs',{}).get('laplacian_variance',0)}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Color Saturation Mean</td>
+                                            <td>{inp_specs.get('color_profile',{}).get('saturation_mean',0)}</td>
+                                            <td>{tgt_specs.get('color_profile',{}).get('saturation_mean',0)}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Sensor Noise STD</td>
+                                            <td>{inp_specs.get('noise_specs',{}).get('sensor_noise_std',0)}</td>
+                                            <td>{tgt_specs.get('noise_specs',{}).get('sensor_noise_std',0)}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                """)
+                        else:
+                            _render_html("<div style='margin-top: 1.2rem;'></div>")
+                            st.warning(f"No match found in trained memory bank (Closest Similarity: {m_res.get('similarity', 0.0):.1f}%).")
+                            _render_html("<div style='margin-top: 0.8rem;'></div>")
+                            if st.button("Run Full 14-Engine Scan Now →", type="secondary", use_container_width=True):
+                                st.session_state.scan_image = test_img
+                                st.session_state.scan_meta = {
+                                    "width": test_img.width,
+                                    "height": test_img.height,
+                                    "fmt": "JPEG",
+                                    "name": test_file.name,
+                                }
+                                st.session_state.result = full_image_analysis(test_img)
+                                st.session_state.page = "results"
+                                st.session_state.scan_ready = True
+                                st.rerun()
+
+    # ── TAB 3: KNOWLEDGE BANK GALLERY ──
+    with t_bank:
+        _render_html("<div style='margin-top: 1.2rem;'></div>")
+        reg_dict = _get_cached_registry()
+        
+        _render_html(f"""
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.4rem;">
+            <h3 style="margin:0;">Learned Memory Bank <code>({len(reg_dict)} Images Remembered)</code></h3>
+        </div>
+        """)
+
+        if not reg_dict:
+            st.info("No images registered yet. Train your first image in Tab 1!")
+        else:
+            filter_cat = st.selectbox(
+                "Filter Knowledge Bank by Ground Truth Category:",
+                ["All", "Generated by AI", "AI-Edited", "Authentic / Real"],
+            )
+            _render_html("<div style='margin-top: 1.2rem;'></div>")
+
+            for sha, item in reg_dict.items():
+                lbl = item.get("label", "")
+                if filter_cat == "Generated by AI" and lbl not in ("generated_by_ai", "ai"):
+                    continue
+                if filter_cat == "AI-Edited" and lbl != "ai_edited":
+                    continue
+                if filter_cat == "Authentic / Real" and lbl != "real":
+                    continue
+
+                fn = item.get("filename", "exemplar")
+                vrd = item.get("verdict_label", item.get("verdict", ""))
+                reg_t = item.get("registered_at", "")
+                notes = item.get("notes", "")
+
+                with st.expander(f"{fn} — {vrd}"):
+                    c1, c2 = st.columns([1, 1.8], gap="medium")
+                    with c1:
+                        st.markdown(f"**Ground Truth:** `{lbl}`")
+                        st.markdown(f"**Registered:** `{reg_t}`")
+                        st.markdown(f"**SHA256:** `{sha[:16]}...`")
+                        st.markdown(f"**dHash:** `{item.get('dhash','')[:18]}...`")
+                        if notes:
+                            st.markdown(f"**Notes:** {notes}")
+                    with c2:
+                        sp = item.get("forensic_specs", {})
+                        if sp:
+                            st.markdown(textwrap.dedent(f"""
+                            - **Resolution:** `{sp.get('resolution',{}).get('width')}x{sp.get('resolution',{}).get('height')}`
+                            - **FFT High-Freq Ratio:** `{sp.get('frequency_specs',{}).get('high_frequency_ratio')}`
+                            - **Texture Sharpness:** `{sp.get('texture_specs',{}).get('laplacian_variance')}`
+                            - **Saturation Mean:** `{sp.get('color_profile',{}).get('saturation_mean')}`
+                            - **Sensor Noise STD:** `{sp.get('noise_specs',{}).get('sensor_noise_std')}`
+                            """).strip())
+
+
 # ──────────────────────────────────────────────
 # FOOTER
 # ──────────────────────────────────────────────
 
-st.markdown(
+_render_html(
     '<div class="footer-text">NEXUS+ <span>·</span> AI Detector v7.0 <span>·</span> '
     '14-Engine Multi-Domain Forensics + AI Judge <span>·</span> '
-    'HuggingFace + OpenAI CLIP + FFT + Inpainting Forensics</div>',
-    unsafe_allow_html=True,
+    'HuggingFace + OpenAI CLIP + FFT + Inpainting Forensics</div>'
 )
