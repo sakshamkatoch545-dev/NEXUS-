@@ -1,38 +1,173 @@
 """
-NEXUS+ Authentication Module
+NEXUS+ Authentication & 30-Day Persistent Session Module
 Provides Real Google 2-Step OAuth 2.0 Identity Verification,
 30-Day Persistent Auto-Login Sessions, and Analyst Credentials.
 """
 
 import os
 import json
+import time
+import hmac
+import hashlib
+import base64
 import urllib.parse
+from datetime import datetime, timedelta
 import requests
 import streamlit as st
 
-try:
-    from src.session_manager import (
-        create_persistent_session,
-        verify_persistent_session,
-        revoke_persistent_session,
-    )
-except ImportError:
-    try:
-        from .session_manager import (
-            create_persistent_session,
-            verify_persistent_session,
-            revoke_persistent_session,
-        )
-    except ImportError:
-        from session_manager import (
-            create_persistent_session,
-            verify_persistent_session,
-            revoke_persistent_session,
-        )
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+RESULTS_DIR = os.path.join(_BASE_DIR, "results")
+AUTH_CONFIG_PATH = os.path.join(RESULTS_DIR, ".auth_config.json")
+SECRET_KEY_PATH = os.path.join(RESULTS_DIR, ".session_secret.key")
+SESSIONS_DB_PATH = os.path.join(RESULTS_DIR, "sessions.json")
 
-AUTH_CONFIG_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "results", ".auth_config.json"
-)
+
+# ── HMAC SECRET KEY & SESSION DB MANAGEMENT ──
+
+def _get_or_create_secret_key() -> bytes:
+    """Retrieve or generate persistent HMAC secret key."""
+    os.makedirs(RESULTS_DIR, exist_ok=True)
+    if os.path.exists(SECRET_KEY_PATH):
+        try:
+            with open(SECRET_KEY_PATH, "rb") as f:
+                key = f.read().strip()
+                if len(key) >= 32:
+                    return key
+        except Exception:
+            pass
+    new_key = os.urandom(32).hex().encode("utf-8")
+    try:
+        with open(SECRET_KEY_PATH, "wb") as f:
+            f.write(new_key)
+    except Exception:
+        pass
+    return new_key
+
+SECRET_KEY = _get_or_create_secret_key()
+
+
+def _load_sessions_db() -> dict:
+    """Load persistent session store."""
+    if not os.path.exists(SESSIONS_DB_PATH):
+        return {}
+    try:
+        with open(SESSIONS_DB_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _save_sessions_db(db: dict):
+    """Save persistent session store safely."""
+    os.makedirs(RESULTS_DIR, exist_ok=True)
+    temp_path = SESSIONS_DB_PATH + ".tmp"
+    try:
+        with open(temp_path, "w", encoding="utf-8") as f:
+            json.dump(db, f, indent=2)
+        os.replace(temp_path, SESSIONS_DB_PATH)
+    except Exception:
+        pass
+
+
+def clean_expired_sessions():
+    """Housekeeping to remove expired sessions."""
+    try:
+        db = _load_sessions_db()
+        now = time.time()
+        active = {k: v for k, v in db.items() if v.get("expires_ts", 0) > now}
+        if len(active) != len(db):
+            _save_sessions_db(active)
+    except Exception:
+        pass
+
+
+def create_persistent_session(user_dict: dict, days: int = 30) -> str:
+    """Generate a secure 30-day signed session token and persist it."""
+    clean_expired_sessions()
+    now = time.time()
+    exp = now + (days * 86400)
+    
+    payload = {
+        "email": user_dict.get("email", ""),
+        "name": user_dict.get("name", "Analyst"),
+        "role": user_dict.get("role", "TIER-1 INVESTIGATOR"),
+        "auth_type": user_dict.get("auth_type", "analyst"),
+        "avatar": user_dict.get("avatar", ""),
+        "created_at": now,
+        "expires_at": exp,
+        "days_valid": days,
+    }
+    
+    payload_json = json.dumps(payload, sort_keys=True)
+    payload_b64 = base64.urlsafe_b64encode(payload_json.encode("utf-8")).decode("utf-8")
+    sig = hmac.new(SECRET_KEY, payload_b64.encode("utf-8"), hashlib.sha256).hexdigest()
+    token = f"{payload_b64}.{sig}"
+    
+    db = _load_sessions_db()
+    token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    db[token_hash] = {
+        "user": user_dict,
+        "created_at": datetime.fromtimestamp(now).strftime("%Y-%m-%d %H:%M:%S"),
+        "expires_at": datetime.fromtimestamp(exp).strftime("%Y-%m-%d %H:%M:%S"),
+        "expires_ts": exp,
+    }
+    _save_sessions_db(db)
+    return token
+
+
+def verify_persistent_session(token: str) -> dict | None:
+    """Verify a persistent session token."""
+    if not token or "." not in token:
+        return None
+    try:
+        payload_b64, sig = token.split(".", 1)
+        expected_sig = hmac.new(SECRET_KEY, payload_b64.encode("utf-8"), hashlib.sha256).hexdigest()
+        
+        if not hmac.compare_digest(sig, expected_sig):
+            return None
+        
+        payload_json = base64.urlsafe_b64decode(payload_b64.encode("utf-8")).decode("utf-8")
+        payload = json.loads(payload_json)
+        
+        now = time.time()
+        if now > payload.get("expires_at", 0):
+            revoke_persistent_session(token)
+            return None
+        
+        db = _load_sessions_db()
+        token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+        if token_hash not in db:
+            return None
+        
+        return {
+            "name": payload.get("name"),
+            "email": payload.get("email"),
+            "role": payload.get("role"),
+            "auth_type": payload.get("auth_type"),
+            "avatar": payload.get("avatar", ""),
+            "is_persistent": True,
+            "session_token": token,
+            "days_remaining": max(0, int((payload.get("expires_at", 0) - now) / 86400)),
+        }
+    except Exception:
+        return None
+
+
+def revoke_persistent_session(token: str):
+    """Revoke and delete a session token on logout."""
+    if not token:
+        return
+    try:
+        db = _load_sessions_db()
+        token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+        if token_hash in db:
+            del db[token_hash]
+            _save_sessions_db(db)
+    except Exception:
+        pass
+
+
+# ── GOOGLE OAUTH 2.0 & ANALYST CREDENTIALS ──
 
 def _load_auth_config() -> dict:
     """Load auth config from environment, secrets, or local file."""
@@ -41,7 +176,6 @@ def _load_auth_config() -> dict:
         "client_secret": os.environ.get("GOOGLE_CLIENT_SECRET", ""),
         "redirect_uri": os.environ.get("GOOGLE_REDIRECT_URI", "http://localhost:8501"),
     }
-    # Check local saved file
     if os.path.exists(AUTH_CONFIG_PATH):
         try:
             with open(AUTH_CONFIG_PATH, "r", encoding="utf-8") as f:
@@ -57,7 +191,7 @@ def _load_auth_config() -> dict:
 
 def save_google_credentials(client_id: str, client_secret: str):
     """Save Google OAuth credentials to local config."""
-    os.makedirs(os.path.dirname(AUTH_CONFIG_PATH), exist_ok=True)
+    os.makedirs(RESULTS_DIR, exist_ok=True)
     with open(AUTH_CONFIG_PATH, "w", encoding="utf-8") as f:
         json.dump({"client_id": client_id.strip(), "client_secret": client_secret.strip()}, f, indent=2)
 
@@ -66,7 +200,6 @@ GOOGLE_AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_ENDPOINT = "https://www.googleapis.com/oauth2/v2/userinfo"
 
-# Default Analyst credentials for secure local forensic access
 DEFAULT_ANALYSTS = {
     "analyst@nexus.forensics": {
         "name": "Lead Forensic Analyst",
@@ -84,17 +217,12 @@ DEFAULT_ANALYSTS = {
 
 
 def get_google_auth_url() -> str:
-    """
-    Generate Google OAuth 2.0 authorization URL with 2-Step Verification parameters.
-    Prompts for account selection and triggers 2FA security challenge on user's Google Account.
-    """
+    """Generate Google OAuth 2.0 authorization URL with 2-Step Verification parameters."""
     config = _load_auth_config()
     client_id = config.get("client_id")
     redirect_uri = config.get("redirect_uri", "http://localhost:8501")
-    
     if not client_id:
         return ""
-    
     params = {
         "client_id": client_id,
         "redirect_uri": redirect_uri,
@@ -113,10 +241,8 @@ def exchange_google_code(code: str) -> dict | None:
     client_id = config.get("client_id")
     client_secret = config.get("client_secret")
     redirect_uri = config.get("redirect_uri", "http://localhost:8501")
-
     if not client_id or not client_secret:
         return None
-
     try:
         data = {
             "code": code,
@@ -129,10 +255,8 @@ def exchange_google_code(code: str) -> dict | None:
         res.raise_for_status()
         tokens = res.json()
         access_token = tokens.get("access_token")
-
         if not access_token:
             return None
-
         headers = {"Authorization": f"Bearer {access_token}"}
         userinfo_res = requests.get(GOOGLE_USERINFO_ENDPOINT, headers=headers, timeout=10)
         userinfo_res.raise_for_status()
@@ -192,11 +316,10 @@ def login_user(user_dict: dict, remember_30_days: bool = True):
     init_auth_state()
     st.session_state.authenticated = True
     st.session_state.user = user_dict
-    
     if remember_30_days:
         token = create_persistent_session(user_dict, days=30)
         st.session_state.session_token = token
-        st.session_state.new_login_token = token  # Signal to JS to save in localStorage
+        st.session_state.new_login_token = token
 
 
 def try_restore_session_from_token(token: str) -> bool:
@@ -222,7 +345,7 @@ def logout_user():
     st.session_state.authenticated = False
     st.session_state.user = None
     st.session_state.session_token = None
-    st.session_state.logout_signal = True  # Signal to JS to clear localStorage
+    st.session_state.logout_signal = True
     st.session_state.page = "landing"
     st.session_state.result = None
     st.session_state.scan_image = None
