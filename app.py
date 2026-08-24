@@ -11,52 +11,27 @@ from PIL import Image
 _BASE = os.path.dirname(os.path.abspath(__file__))
 if _BASE not in sys.path:
     sys.path.insert(0, _BASE)
-_SRC = os.path.join(_BASE, "src")
-if _SRC not in sys.path:
-    sys.path.insert(0, _SRC)
 
-try:
-    from src.detector import (
-        full_image_analysis,
-        warmup_models,
-        extract_image_forensic_specs,
-        match_image_against_registry,
-        learn_and_register_image,
-        _get_cached_registry,
-    )
-    from src.auth import (
-        is_authenticated,
-        get_current_user,
-        login_user,
-        logout_user,
-        get_google_auth_url,
-        exchange_google_code,
-        verify_google_id_token,
-        verify_credentials,
-        login_demo_google_user,
-        try_restore_session_from_token,
-    )
-except ImportError:
-    from detector import (
-        full_image_analysis,
-        warmup_models,
-        extract_image_forensic_specs,
-        match_image_against_registry,
-        learn_and_register_image,
-        _get_cached_registry,
-    )
-    from auth import (
-        is_authenticated,
-        get_current_user,
-        login_user,
-        logout_user,
-        get_google_auth_url,
-        exchange_google_code,
-        verify_google_id_token,
-        verify_credentials,
-        login_demo_google_user,
-        try_restore_session_from_token,
-    )
+from src.detector import (
+    full_image_analysis,
+    warmup_models,
+    extract_image_forensic_specs,
+    match_image_against_registry,
+    learn_and_register_image,
+    _get_cached_registry,
+)
+from src.auth import (
+    is_authenticated,
+    get_current_user,
+    login_user,
+    logout_user,
+    get_google_auth_url,
+    exchange_google_code,
+    verify_google_id_token,
+    verify_credentials,
+    login_demo_google_user,
+    try_restore_session_from_token,
+)
 
 def _render_html(html_str: str):
     """Render pure HTML safely via native st.html without Markdown parser interference."""

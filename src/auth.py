@@ -17,11 +17,18 @@ try:
         revoke_persistent_session,
     )
 except ImportError:
-    from session_manager import (
-        create_persistent_session,
-        verify_persistent_session,
-        revoke_persistent_session,
-    )
+    try:
+        from .session_manager import (
+            create_persistent_session,
+            verify_persistent_session,
+            revoke_persistent_session,
+        )
+    except ImportError:
+        from session_manager import (
+            create_persistent_session,
+            verify_persistent_session,
+            revoke_persistent_session,
+        )
 
 AUTH_CONFIG_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "results", ".auth_config.json"
